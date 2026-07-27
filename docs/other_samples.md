@@ -1,20 +1,22 @@
-# RAG chat: Alternative RAG chat samples
+# Alternative RAG chat samples
+
+This repository is a fork of [azure-search-openai-demo](https://github.com/Azure-Samples/azure-search-openai-demo), trimmed down to just the Azure AI Search ingestion pipeline — the chat UI and chat backend were removed, since Microsoft Copilot Studio serves as the chat front end instead (see [the Copilot Studio integration guide](copilot_studio_integration.md)). If you're instead looking for a full, self-hosted RAG chat application (rather than one built on Copilot Studio), the comparisons below describe the upstream `azure-search-openai-demo` sample and some alternatives.
 
 There are an increasingly large number of ways to build RAG chat apps.
 
-* [Most similar to this repo](#most-similar-to-this-repo)
+* [Most similar to the upstream sample](#most-similar-to-the-upstream-sample)
 * [azurechat](#azurechat)
 * [sample-app-aoai-chatGPT](#sample-app-aoai-chatgpt)
 
-## Most similar to this repo
+## Most similar to the upstream sample
 
-Inspired by this repo, there are similar RAG chat apps for other languages:
+Inspired by the upstream `azure-search-openai-demo` sample, there are similar RAG chat apps for other languages:
 
 * [**JavaScript**](https://aka.ms/azai/js/code)
 * [**.NET**](https://aka.ms/azai/net/code)
 * [**Java**](https://aka.ms/azai/java/code)
 
-They do not all support the same features as this repo, but they provide a good starting point for building a RAG chat app in your preferred language.
+They do not all support the same features as the upstream sample, but they provide a good starting point for building a RAG chat app in your preferred language.
 
 ## azurechat
 
@@ -23,10 +25,10 @@ Another popular sample is the Azure Chat Solution Accelerator:
 
 AzureChat deploys a private chat app with a ChatGPT-like UX on Azure, with built‑in capabilities for chatting over internal data and files and optional extensions.
 
-Key differences versus this repository:
+Key differences versus the upstream `azure-search-openai-demo` sample:
 
-* **Technology stack**: AzureChat uses a full JavaScript/TypeScript stack with a Node.js backend; this repo uses Python (Quart) for backend services.
-* **Use case emphasis**: AzureChat offers more features around user personalization, while this repo offers more features needed for enterprise scenarios like data ACLs and evaluation.
+* **Technology stack**: AzureChat uses a full JavaScript/TypeScript stack with a Node.js backend; the upstream sample uses Python (Quart) for backend services.
+* **Use case emphasis**: AzureChat offers more features around user personalization, while the upstream sample offers more features needed for enterprise scenarios like data ACLs and evaluation.
 
 Feature comparison:
 

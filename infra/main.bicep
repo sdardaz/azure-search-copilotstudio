@@ -69,8 +69,6 @@ param environmentName string
 })
 param location string
 
-param appServicePlanName string = '' // Set in main.parameters.json
-param backendServiceName string = '' // Set in main.parameters.json
 param resourceGroupName string = '' // Set in main.parameters.json
 
 param applicationInsightsDashboardName string = '' // Set in main.parameters.json
@@ -84,7 +82,6 @@ param searchServiceLocation string = '' // Set in main.parameters.json
 @allowed(['free', 'basic', 'standard', 'standard2', 'standard3', 'storage_optimized_l1', 'storage_optimized_l2'])
 param searchServiceSkuName string // Set in main.parameters.json
 param searchIndexName string // Set in main.parameters.json
-param knowledgeBaseName string = useAgenticKnowledgeBase ? '${searchIndexName}-agent-upgrade' : ''
 param searchQueryLanguage string // Set in main.parameters.json
 param searchQuerySpeller string // Set in main.parameters.json
 param searchServiceSemanticRankerLevel string // Set in main.parameters.json
@@ -99,19 +96,7 @@ param storageResourceGroupLocation string = location
 param storageContainerName string = 'content'
 param storageSkuName string // Set in main.parameters.json
 
-param defaultReasoningEffort string // Set in main.parameters.json
-@description('Controls the default retrieval reasoning effort for agentic retrieval (minimal, low, or medium).')
-param defaultRetrievalReasoningEffort string = 'minimal'
-param useAgenticKnowledgeBase bool // Set in main.parameters.json
-
-param userStorageAccountName string = ''
-param userStorageContainerName string = 'user-content'
-
-param tokenStorageContainerName string = 'tokens'
-
 param imageStorageContainerName string = 'images'
-
-param appServiceSkuName string // Set in main.parameters.json
 
 @allowed(['azure', 'openai', 'azure_custom'])
 param openAiHost string // Set in main.parameters.json
@@ -127,14 +112,23 @@ param openAiResourceGroupName string = ''
 @description('Name of the Microsoft Foundry project to create inside the Foundry account. Leave empty to generate one.')
 param foundryProjectName string = ''
 
-param speechServiceResourceGroupName string = ''
-param speechServiceLocation string = ''
-param speechServiceName string = ''
-param speechServiceSkuName string // Set in main.parameters.json
-param speechServiceVoice string = ''
 param useMultimodal bool = false
 param useEval bool = false
 param useCloudIngestion bool = false
+
+@description('Sync a SharePoint Online document library into the cloud-ingestion Blob container on a schedule. Requires useCloudIngestion=true.')
+param useSharePointLogicApp bool = false
+@description('SharePoint Online tenant hostname, e.g. contoso.sharepoint.com. Required when useSharePointLogicApp is true.')
+param sharePointHostname string = ''
+@description('Server-relative SharePoint site path, e.g. /sites/Marketing. Required when useSharePointLogicApp is true.')
+param sharePointSitePath string = ''
+@description('Optional folder path within the site drive to restrict syncing to. Empty means the whole default document library.')
+param sharePointFolderPath string = ''
+@description('How often the SharePoint sync Logic App polls for changes, in minutes')
+param sharePointSyncIntervalMinutes int = 15
+@description('Optional webhook URL (e.g. a Teams incoming webhook) notified when a SharePoint sync or indexer run fails')
+@secure()
+param sharePointNotificationWebhookUrl string = ''
 
 // When greater than 0, CSV rows are grouped into pages of up to this many characters
 // during ingestion instead of one page per row (avoids out-of-memory on large CSV files).
@@ -148,16 +142,6 @@ param useExistingAdlsStorage bool = false
 // Must be specified when useExistingAdlsStorage is true. Bicep assert is experimental so we can't validate at compile-time yet.
 param adlsStorageAccountName string = ''
 param adlsStorageResourceGroupName string = ''
-
-@allowed(['free', 'provisioned', 'serverless'])
-param cosmosDbSkuName string // Set in main.parameters.json
-param cosmodDbResourceGroupName string = ''
-param cosmosDbLocation string = ''
-param cosmosDbAccountName string = ''
-param cosmosDbThroughput int = 400
-param chatHistoryDatabaseName string = 'chat-database'
-param chatHistoryContainerName string = 'chat-history-v2'
-param chatHistoryVersion string = 'cosmosdb-v2'
 
 // https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure?tabs=global-standard-aoai%2Cglobal-standard&pivots=azure-openai#models-by-deployment-type
 @description('Location for the OpenAI resource group')
@@ -264,40 +248,12 @@ var eval = {
   deploymentCapacity: evalDeploymentCapacity != 0 ? evalDeploymentCapacity : 30
 }
 
-param knowledgeBaseModelName string = ''
-param knowledgeBaseDeploymentName string = ''
-param knowledgeBaseModelVersion string = ''
-param knowledgeBaseDeploymentSkuName string = ''
-param knowledgeBaseDeploymentCapacity int = 0
-var knowledgeBase = {
-  modelName: !empty(knowledgeBaseModelName) ? knowledgeBaseModelName : 'gpt-5.4'
-  deploymentName: !empty(knowledgeBaseDeploymentName) ? knowledgeBaseDeploymentName : 'knowledgebase'
-  deploymentVersion: !empty(knowledgeBaseModelVersion) ? knowledgeBaseModelVersion : '2026-03-05'
-  deploymentSkuName: !empty(knowledgeBaseDeploymentSkuName) ? knowledgeBaseDeploymentSkuName : 'GlobalStandard'
-  deploymentCapacity: knowledgeBaseDeploymentCapacity != 0 ? knowledgeBaseDeploymentCapacity : 100
-}
-
-
 param tenantId string = tenant().tenantId
-param authTenantId string = ''
 
-// Used for the optional login and document level access control system
+// Used for the optional document-level access control system applied during ingestion
 param useAuthentication bool = false
 param enforceAccessControl bool = false
-// Force using MSAL app authentication instead of built-in App Service authentication
-// https://learn.microsoft.com/azure/app-service/overview-authentication-authorization
-param disableAppServicesAuthentication bool = false
 param enableGlobalDocuments bool = false
-param enableUnauthenticatedAccess bool = false
-param serverAppId string = ''
-@secure()
-param serverAppSecret string = ''
-param clientAppId string = ''
-@secure()
-param clientAppSecret string = ''
-
-// Used for optional CORS support for alternate frontends
-param allowedOrigin string = '' // should start with https://, shouldn't end with a /
 
 @allowed(['None', 'AzureServices'])
 @description('If allowedIp is set, whether azure services are allowed to bypass the storage and AI services firewall.')
@@ -319,18 +275,6 @@ param principalId string = ''
 @description('Use Application Insights for monitoring and performance tracing')
 param useApplicationInsights bool = false
 
-@description('Enable language picker')
-param enableLanguagePicker bool = false
-@description('Use speech recognition feature in browser')
-param useSpeechInputBrowser bool = false
-@description('Use speech synthesis in browser')
-param useSpeechOutputBrowser bool = false
-@description('Use Azure speech service for reading out text')
-param useSpeechOutputAzure bool = false
-@description('Use chat history feature in browser')
-param useChatHistoryBrowser bool = false
-@description('Use chat history feature in CosmosDB')
-param useChatHistoryCosmos bool = false
 @description('Show options to use vector embeddings for searching in the app UI')
 param useVectors bool = false
 @description('Use Built-in integrated Vectorization feature of AI Search to vectorize and ingest documents')
@@ -339,8 +283,6 @@ param useIntegratedVectorization bool = false
 @description('Use media description feature with Azure Content Understanding during ingestion')
 param useMediaDescriberAzureCU bool = true
 
-@description('Enable user document upload feature')
-param useUserUpload bool = false
 param useLocalPdfParser bool = false
 param useLocalHtmlParser bool = false
 
@@ -348,52 +290,15 @@ var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
 
-var tenantIdForAuth = !empty(authTenantId) ? authTenantId : tenantId
-var authenticationIssuerUri = '${environment().authentication.loginEndpoint}${tenantIdForAuth}/v2.0'
+// Issuer used for the Entra ID app registrations securing the cloud-ingestion custom skill
+// endpoints (see infra/app/functions.bicep) - unrelated to any end-user login flow.
+var authenticationIssuerUri = '${environment().authentication.loginEndpoint}${tenantId}/v2.0'
 
 @description('Whether the deployment is running on GitHub Actions')
 param runningOnGh string = ''
 
 @description('Whether the deployment is running on Azure DevOps Pipeline')
 param runningOnAdo string = ''
-
-@description('Used by azd for containerapps deployment')
-param webAppExists bool
-
-@allowed(['Consumption', 'D4', 'D8', 'D16', 'D32', 'E4', 'E8', 'E16', 'E32', 'NC24-A100', 'NC48-A100', 'NC96-A100'])
-param azureContainerAppsWorkloadProfile string
-
-@allowed(['appservice', 'containerapps'])
-param deploymentTarget string = 'appservice'
-
-// RAG Configuration Parameters
-@description('Whether to use text embeddings for RAG search')
-param ragSearchTextEmbeddings bool = true
-@description('Whether to use image embeddings for RAG search')
-param ragSearchImageEmbeddings bool = true
-@description('Whether to send text sources to LLM for RAG responses')
-param ragSendTextSources bool = true
-@description('Whether to send image sources to LLM for RAG responses')
-param ragSendImageSources bool = true
-@description('Whether to enable web sources for agentic retrieval')
-param useWebSource bool = false
-@description('Whether to enable SharePoint sources for agentic retrieval')
-param useSharePointSource bool = false
-
-param acaIdentityName string = deploymentTarget == 'containerapps' ? '${environmentName}-aca-identity' : ''
-param acaManagedEnvironmentName string = deploymentTarget == 'containerapps' ? '${environmentName}-aca-env' : ''
-param containerRegistryName string = deploymentTarget == 'containerapps'
-  ? '${replace(toLower(environmentName), '-', '')}acr'
-  : ''
-
-// Configure CORS for allowing different web apps to use the backend
-// For more information please see https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-var msftAllowedOrigins = [ 'https://portal.azure.com', 'https://ms.portal.azure.com' ]
-var loginEndpoint = environment().authentication.loginEndpoint
-var loginEndpointFixed = lastIndexOf(loginEndpoint, '/') == length(loginEndpoint) - 1 ? substring(loginEndpoint, 0, max(length(loginEndpoint) - 1, 0)) : loginEndpoint
-var allMsftAllowedOrigins = !(empty(clientAppId)) ? union(msftAllowedOrigins, [ loginEndpointFixed ]) : msftAllowedOrigins
-// Combine custom origins with Microsoft origins, remove any empty origin strings and remove any duplicate origins
-var allowedOrigins = reduce(filter(union(split(allowedOrigin, ';'), allMsftAllowedOrigins), o => length(trim(o)) > 0), [], (cur, next) => union(cur, [next]))
 
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
@@ -419,10 +324,6 @@ var searchServiceResourceGroupNameActual = !empty(searchServiceResourceGroupName
   ? searchServiceResourceGroupName
   : resourceGroup.name
 var storageResourceGroupNameActual = !empty(storageResourceGroupName) ? storageResourceGroupName : resourceGroup.name
-var speechResourceGroupNameActual = !empty(speechServiceResourceGroupName)
-  ? speechServiceResourceGroupName
-  : resourceGroup.name
-var cosmosDbResourceGroupNameActual = !empty(cosmodDbResourceGroupName) ? cosmodDbResourceGroupName : resourceGroup.name
 // ADLS resource group - defaults to main resource group if not specified
 var adlsStorageResourceGroupNameActual = !empty(adlsStorageResourceGroupName)
   ? adlsStorageResourceGroupName
@@ -457,28 +358,13 @@ module applicationInsightsDashboard 'backend-dashboard.bicep' = if (useApplicati
   }
 }
 
-// Create an App Service Plan to group applications under the same payment plan and SKU
-module appServicePlan 'core/host/appserviceplan.bicep' = if (deploymentTarget == 'appservice') {
-  name: 'appserviceplan'
-  scope: resourceGroup
-  params: {
-    name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
-    location: location
-    tags: tags
-    sku: {
-      name: appServiceSkuName
-      capacity: 1
-    }
-    kind: 'linux'
-  }
-}
-
 // Determine which ADLS storage account name to use (existing or provisioned)
 var adlsStorageAccountNameResolved = useExistingAdlsStorage ? existingAdlsStorage.name : (useCloudIngestionAcls ? adlsStorage!.outputs.name : '')
 
 // For cloud ingestion with ACLs, use the ADLS Gen2 storage account; otherwise use the standard storage account
 var cloudIngestionStorageAccount = useCloudIngestionAcls ? adlsStorageAccountNameResolved : storage.outputs.name
 
+// Shared app settings consumed by the cloud-ingestion Function Apps (infra/app/functions.bicep)
 var appEnvVariables = {
   AZURE_STORAGE_ACCOUNT: storage.outputs.name
   AZURE_STORAGE_CONTAINER: storageContainerName
@@ -488,7 +374,6 @@ var appEnvVariables = {
   USE_CLOUD_INGESTION_ACLS: string(useCloudIngestionAcls)
   AZURE_SUBSCRIPTION_ID: subscription().subscriptionId
   AZURE_SEARCH_INDEX: searchIndexName
-  AZURE_SEARCH_KNOWLEDGEBASE_NAME: knowledgeBaseName
   AZURE_SEARCH_SERVICE: searchService.outputs.name
   AZURE_SEARCH_SEMANTIC_RANKER: actualSearchServiceSemanticRankerLevel
   AZURE_SEARCH_QUERY_REWRITING: searchServiceQueryRewriting
@@ -499,185 +384,35 @@ var appEnvVariables = {
   APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights
     ? monitoring!.outputs.applicationInsightsConnectionString
     : ''
-  AZURE_SPEECH_SERVICE_ID: useSpeechOutputAzure ? speech!.outputs.resourceId : ''
-  AZURE_SPEECH_SERVICE_LOCATION: useSpeechOutputAzure ? speech!.outputs.location : ''
-  AZURE_SPEECH_SERVICE_VOICE: useSpeechOutputAzure ? speechServiceVoice : ''
-  ENABLE_LANGUAGE_PICKER: enableLanguagePicker
-  USE_SPEECH_INPUT_BROWSER: useSpeechInputBrowser
-  USE_SPEECH_OUTPUT_BROWSER: useSpeechOutputBrowser
-  USE_SPEECH_OUTPUT_AZURE: useSpeechOutputAzure
-  USE_AGENTIC_KNOWLEDGEBASE: useAgenticKnowledgeBase
-  // Chat history settings
-  USE_CHAT_HISTORY_BROWSER: useChatHistoryBrowser
-  USE_CHAT_HISTORY_COSMOS: useChatHistoryCosmos
-  AZURE_COSMOSDB_ACCOUNT: (useAuthentication && useChatHistoryCosmos) ? cosmosDb!.outputs.name : ''
-  AZURE_CHAT_HISTORY_DATABASE: chatHistoryDatabaseName
-  AZURE_CHAT_HISTORY_CONTAINER: chatHistoryContainerName
-  AZURE_CHAT_HISTORY_VERSION: chatHistoryVersion
   // Shared by all OpenAI deployments
   OPENAI_HOST: openAiHost
   AZURE_OPENAI_EMB_MODEL_NAME: embedding.modelName
   AZURE_OPENAI_EMB_DIMENSIONS: embedding.dimensions
+  // Vision-capable model used by the figure-processor skill to describe images/figures during ingestion
   AZURE_OPENAI_CHATGPT_MODEL: chatGpt.modelName
-  AZURE_OPENAI_REASONING_EFFORT: defaultReasoningEffort
-  AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT: defaultRetrievalReasoningEffort
   // Specific to Azure OpenAI
   AZURE_OPENAI_SERVICE: deployFoundryAccount ? foundryAccount!.outputs.name : ''
   AZURE_OPENAI_CHATGPT_DEPLOYMENT: chatGpt.deploymentName
   AZURE_OPENAI_EMB_DEPLOYMENT: embedding.deploymentName
-  AZURE_OPENAI_KNOWLEDGEBASE_MODEL: knowledgeBase.modelName
-  AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT: knowledgeBase.deploymentName
   AZURE_OPENAI_API_KEY_OVERRIDE: azureOpenAiApiKey
   AZURE_OPENAI_CUSTOM_URL: azureOpenAiCustomUrl
   // Used only with non-Azure OpenAI deployments
   OPENAI_API_KEY: openAiApiKey
   OPENAI_ORGANIZATION: openAiApiOrganization
-  // Optional login and document level access control system
+  // Optional document-level access control system applied during ingestion
   AZURE_USE_AUTHENTICATION: useAuthentication
   AZURE_ENFORCE_ACCESS_CONTROL: enforceAccessControl
   AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS: enableGlobalDocuments
-  AZURE_ENABLE_UNAUTHENTICATED_ACCESS: enableUnauthenticatedAccess
-  AZURE_SERVER_APP_ID: serverAppId
-  AZURE_CLIENT_APP_ID: clientAppId
   AZURE_TENANT_ID: tenantId
-  AZURE_AUTH_TENANT_ID: tenantIdForAuth
-  AZURE_AUTHENTICATION_ISSUER_URI: authenticationIssuerUri
-  // CORS support, for frontends on other hosts
-  ALLOWED_ORIGIN: join(allowedOrigins, ';')
   USE_VECTORS: useVectors
   USE_MULTIMODAL: useMultimodal
   CSV_MAX_PAGE_CHARS: string(csvMaxPageChars)
-  USE_USER_UPLOAD: useUserUpload
-  AZURE_USERSTORAGE_ACCOUNT: useUserUpload ? userStorage!.outputs.name : ''
-  AZURE_USERSTORAGE_CONTAINER: useUserUpload ? userStorageContainerName : ''
   AZURE_IMAGESTORAGE_CONTAINER: useMultimodal ? imageStorageContainerName : ''
   AZURE_DOCUMENTINTELLIGENCE_SERVICE: documentIntelligence.outputs.name
   USE_LOCAL_PDF_PARSER: useLocalPdfParser
   USE_LOCAL_HTML_PARSER: useLocalHtmlParser
   USE_MEDIA_DESCRIBER_AZURE_CU: useMediaDescriberAzureCU
   AZURE_CONTENTUNDERSTANDING_ENDPOINT: useMediaDescriberAzureCU ? contentUnderstanding!.outputs.endpoint : ''
-  RUNNING_IN_PRODUCTION: 'true'
-  // RAG Configuration
-  RAG_SEARCH_TEXT_EMBEDDINGS: ragSearchTextEmbeddings
-  RAG_SEARCH_IMAGE_EMBEDDINGS: ragSearchImageEmbeddings
-  RAG_SEND_TEXT_SOURCES: ragSendTextSources
-  RAG_SEND_IMAGE_SOURCES: ragSendImageSources
-  USE_WEB_SOURCE: useWebSource
-  USE_SHAREPOINT_SOURCE: useSharePointSource
-}
-
-// App Service for the web application (Python Quart app with JS frontend)
-module backend 'core/host/appservice.bicep' = if (deploymentTarget == 'appservice') {
-  name: 'web'
-  scope: resourceGroup
-  params: {
-    name: !empty(backendServiceName) ? backendServiceName : '${abbrs.webSitesAppService}backend-${resourceToken}'
-    location: location
-    tags: union(tags, { 'azd-service-name': 'backend' })
-    // Need to check deploymentTarget again due to https://github.com/Azure/bicep/issues/3990
-    appServicePlanId: deploymentTarget == 'appservice' ? appServicePlan!.outputs.id : ''
-    runtimeName: 'python'
-    runtimeVersion: '3.11'
-    appCommandLine: 'python3 -m gunicorn main:app'
-    scmDoBuildDuringDeployment: true
-    managedIdentity: true
-    virtualNetworkSubnetId: usePrivateEndpoint ? isolation!.outputs.appSubnetId : ''
-    publicNetworkAccess: publicNetworkAccess
-    allowedOrigins: allowedOrigins
-    clientAppId: clientAppId
-    serverAppId: serverAppId
-    enableUnauthenticatedAccess: enableUnauthenticatedAccess
-    disableAppServicesAuthentication: disableAppServicesAuthentication
-    clientSecretSettingName: !empty(clientAppSecret) ? 'AZURE_CLIENT_APP_SECRET' : ''
-    authenticationIssuerUri: authenticationIssuerUri
-    use32BitWorkerProcess: appServiceSkuName == 'F1'
-    alwaysOn: appServiceSkuName != 'F1'
-    appSettings: union(appEnvVariables, {
-      AZURE_SERVER_APP_SECRET: serverAppSecret
-      AZURE_CLIENT_APP_SECRET: clientAppSecret
-    })
-  }
-}
-
-// Azure container apps resources (Only deployed if deploymentTarget is 'containerapps')
-
-// User-assigned identity for pulling images from ACR
-module acaIdentity 'core/security/aca-identity.bicep' = if (deploymentTarget == 'containerapps') {
-  name: 'aca-identity'
-  scope: resourceGroup
-  params: {
-    identityName: acaIdentityName
-    location: location
-  }
-}
-
-module containerApps 'core/host/container-apps.bicep' = if (deploymentTarget == 'containerapps') {
-  name: 'container-apps'
-  scope: resourceGroup
-  params: {
-    name: 'app'
-    tags: tags
-    location: location
-    containerAppsEnvironmentName: acaManagedEnvironmentName
-    containerRegistryName: '${containerRegistryName}${resourceToken}'
-    logAnalyticsWorkspaceName: useApplicationInsights ? monitoring!.outputs.logAnalyticsWorkspaceName : ''
-    subnetResourceId: usePrivateEndpoint ? isolation!.outputs.appSubnetId : ''
-    usePrivateIngress: usePrivateEndpoint
-    workloadProfile: azureContainerAppsWorkloadProfile
-  }
-}
-
-// Container Apps for the web application (Python Quart app with JS frontend)
-module acaBackend 'core/host/container-app-upsert.bicep' = if (deploymentTarget == 'containerapps') {
-  name: 'aca-web'
-  scope: resourceGroup
-  params: {
-    name: !empty(backendServiceName) ? backendServiceName : '${abbrs.webSitesContainerApps}backend-${resourceToken}'
-    location: location
-    identityName: (deploymentTarget == 'containerapps') ? acaIdentityName : ''
-    exists: webAppExists
-    containerRegistryName: (deploymentTarget == 'containerapps') ? containerApps!.outputs.registryName : ''
-    containerAppsEnvironmentName: (deploymentTarget == 'containerapps') ? containerApps!.outputs.environmentName : ''
-    tags: union(tags, { 'azd-service-name': 'backend' })
-    targetPort: 8000
-    containerCpuCoreCount: '1.0'
-    containerMemory: '2Gi'
-    containerMinReplicas: usePrivateEndpoint ? 1 : 0
-    allowedOrigins: allowedOrigins
-    env: union(appEnvVariables, {
-      // For using managed identity to access Azure resources. See https://github.com/microsoft/azure-container-apps/issues/442
-      AZURE_CLIENT_ID: (deploymentTarget == 'containerapps') ? acaIdentity!.outputs.clientId : ''
-    })
-    secrets: useAuthentication ? {
-      azureclientappsecret: clientAppSecret
-      azureserverappsecret: serverAppSecret
-    } : {}
-    envSecrets: useAuthentication ? [
-      {
-        name: 'AZURE_CLIENT_APP_SECRET'
-        secretRef: 'azureclientappsecret'
-      }
-      {
-        name: 'AZURE_SERVER_APP_SECRET'
-        secretRef: 'azureserverappsecret'
-      }
-    ] : []
-  }
-}
-
-module acaAuth 'core/host/container-apps-auth.bicep' = if (deploymentTarget == 'containerapps' && !empty(clientAppId)) {
-  name: 'aca-auth'
-  scope: resourceGroup
-  params: {
-    name: acaBackend!.outputs.name
-    clientAppId: clientAppId
-    serverAppId: serverAppId
-    clientSecretSettingName: !empty(clientAppSecret) ? 'azureclientappsecret' : ''
-    authenticationIssuerUri: authenticationIssuerUri
-    enableUnauthenticatedAccess: enableUnauthenticatedAccess
-    blobContainerUri: 'https://${storage.outputs.name}.blob.${environment().suffixes.storage}/${tokenStorageContainerName}'
-    appIdentityResourceId: (deploymentTarget == 'appservice') ? '' : acaBackend!.outputs.identityResourceId
-  }
 }
 
 // Optional Azure Functions for document ingestion and processing
@@ -702,6 +437,29 @@ module functions 'app/functions.bicep' = if (useCloudIngestion) {
     openIdIssuer: authenticationIssuerUri
     appEnvVariables: appEnvVariables
     searchUserAssignedIdentityClientId: searchService.outputs.userAssignedIdentityClientId
+  }
+}
+
+// Optional Logic App that syncs a SharePoint Online document library into the cloud-ingestion
+// Blob container, reusing the functions-based skillset above for parsing/chunking/embeddings.
+module sharePointIngestion 'app/logicapp-sharepoint-ingestion.bicep' = if (useSharePointLogicApp && useCloudIngestion) {
+  name: 'sharepoint-ingestion'
+  scope: resourceGroup
+  params: {
+    logicAppName: '${abbrs.logicWorkflows}sp-ingestion-${resourceToken}'
+    location: location
+    tags: tags
+    storageAccountName: cloudIngestionStorageAccount
+    storageResourceGroupName: storageResourceGroupNameActual
+    storageContainerName: storageContainerName
+    searchServiceName: searchService.outputs.name
+    searchServiceResourceGroupName: searchServiceResourceGroupNameActual
+    indexerName: '${searchIndexName}-cloud-indexer'
+    sharePointHostname: sharePointHostname
+    sharePointSitePath: sharePointSitePath
+    sharePointFolderPath: sharePointFolderPath
+    recurrenceIntervalMinutes: sharePointSyncIntervalMinutes
+    notificationWebhookUrl: sharePointNotificationWebhookUrl
   }
 }
 
@@ -748,23 +506,7 @@ var openAiDeployments = concat(
           capacity: eval.deploymentCapacity
         }
       }
-    ] : [],
-  useAgenticKnowledgeBase
-    ? [
-        {
-          name: knowledgeBase.deploymentName
-          model: {
-            format: 'OpenAI'
-            name: knowledgeBase.modelName
-            version: knowledgeBase.deploymentVersion
-          }
-          sku: {
-            name: knowledgeBase.deploymentSkuName
-            capacity: knowledgeBase.deploymentCapacity
-          }
-        }
-      ]
-    : []
+    ] : []
 )
 
 // Provision a Foundry account + project only when we own the account (deployFoundryAccount):
@@ -808,26 +550,15 @@ module foundryAccount 'br/public:avm/res/cognitive-services/account:0.15.0' = if
 // the Foundry / Agents SDKs against FOUNDRY_PROJECT_ENDPOINT.
 var foundryProjectNameResolved = !empty(foundryProjectName) ? foundryProjectName : 'proj-${resourceToken}'
 
-var foundryProjectRoleAssignments = concat(
-  empty(principalId)
-    ? []
-    : [
-        {
-          principalId: principalId
-          roleDefinitionId: 'eadc314b-1a2d-4efa-be10-5d325db5065e' // Azure AI Project Manager
-          principalType: principalType
-        }
-      ],
-  [
-    {
-      principalId: (deploymentTarget == 'appservice')
-        ? backend!.outputs.identityPrincipalId
-        : acaBackend!.outputs.identityPrincipalId
-      roleDefinitionId: '53ca6127-db72-4b80-b1b0-d745d6d5456d' // Azure AI User
-      principalType: 'ServicePrincipal'
-    }
-  ]
-)
+var foundryProjectRoleAssignments = empty(principalId)
+  ? []
+  : [
+      {
+        principalId: principalId
+        roleDefinitionId: 'eadc314b-1a2d-4efa-be10-5d325db5065e' // Azure AI Project Manager
+        principalType: principalType
+      }
+    ]
 
 module foundryProject 'core/ai/ai-foundry-project.bicep' = if (deployFoundryAccount) {
   name: 'foundry-project'
@@ -909,24 +640,6 @@ module contentUnderstanding 'br/public:avm/res/cognitive-services/account:0.7.2'
   }
 }
 
-module speech 'br/public:avm/res/cognitive-services/account:0.7.2' = if (useSpeechOutputAzure) {
-  name: 'speech-service'
-  scope: az.resourceGroup(speechResourceGroupNameActual)
-  params: {
-    name: !empty(speechServiceName) ? speechServiceName : '${abbrs.cognitiveServicesSpeech}${resourceToken}'
-    kind: 'SpeechServices'
-    networkAcls: {
-      defaultAction: 'Allow'
-    }
-    customSubDomainName: !empty(speechServiceName)
-      ? speechServiceName
-      : '${abbrs.cognitiveServicesSpeech}${resourceToken}'
-    location: !empty(speechServiceLocation) ? speechServiceLocation : location
-    tags: tags
-    sku: speechServiceSkuName
-    restore: restoreCognitiveServices
-  }
-}
 module searchService 'core/search/search-services.bicep' = {
   name: 'search-service'
   scope: az.resourceGroup(searchServiceResourceGroupNameActual)
@@ -982,36 +695,6 @@ module storage 'core/storage/storage-account.bicep' = {
         name: imageStorageContainerName
         publicAccess: 'None'
       }
-      {
-        name: tokenStorageContainerName
-        publicAccess: 'None'
-      }
-    ]
-  }
-}
-
-module userStorage 'core/storage/storage-account.bicep' = if (useUserUpload) {
-  name: 'user-storage'
-  scope: az.resourceGroup(storageResourceGroupNameActual)
-  params: {
-    name: !empty(userStorageAccountName)
-      ? userStorageAccountName
-      : 'user${abbrs.storageStorageAccounts}${resourceToken}'
-    location: storageResourceGroupLocation
-    tags: tags
-    publicNetworkAccess: publicNetworkAccess
-    bypass: bypass
-    allowBlobPublicAccess: false
-    allowSharedKeyAccess: false
-    isHnsEnabled: true
-    sku: {
-      name: storageSkuName
-    }
-    containers: [
-      {
-        name: userStorageContainerName
-        publicAccess: 'None'
-      }
     ]
   }
 }
@@ -1052,77 +735,6 @@ module adlsStorage 'core/storage/storage-account.bicep' = if (useCloudIngestionA
   }
 }
 
-// WARNING: Cosmos DB partition keys are immutable. If you originally deployed with the v1 container
-// (chat-history with a single /userId partition key), re-deploying with the v2 container schema
-// (chat-history-v2 with MultiHash /entra_oid + /session_id) will fail with:
-//   "Document collection partition key cannot be changed."
-// To migrate from v1 to v2, you must either:
-//   1. Delete the old container manually (Azure Portal > Cosmos DB > Data Explorer) and re-deploy, OR
-//   2. Override chatHistoryContainerName with a new name (e.g. 'chat-history-v3') via azd env set.
-// This is an ARM/Cosmos DB platform limitation — Bicep cannot conditionally skip container updates.
-module cosmosDb 'br/public:avm/res/document-db/database-account:0.6.1' = if (useAuthentication && useChatHistoryCosmos) {
-  name: 'cosmosdb'
-  scope: az.resourceGroup(cosmosDbResourceGroupNameActual)
-  params: {
-    name: !empty(cosmosDbAccountName) ? cosmosDbAccountName : '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
-    location: !empty(cosmosDbLocation) ? cosmosDbLocation : location
-    locations: [
-      {
-        locationName: !empty(cosmosDbLocation) ? cosmosDbLocation : location
-        failoverPriority: 0
-        isZoneRedundant: false
-      }
-    ]
-    enableFreeTier: cosmosDbSkuName == 'free'
-    capabilitiesToAdd: cosmosDbSkuName == 'serverless' ? ['EnableServerless'] : []
-    networkRestrictions: {
-      ipRules: []
-      networkAclBypass: bypass
-      publicNetworkAccess: publicNetworkAccess
-      virtualNetworkRules: []
-    }
-    sqlDatabases: [
-      {
-        name: chatHistoryDatabaseName
-        throughput: (cosmosDbSkuName == 'serverless') ? null : cosmosDbThroughput
-        containers: [
-          {
-            name: chatHistoryContainerName
-            kind: 'MultiHash'
-            paths: [
-              '/entra_oid'
-              '/session_id'
-            ]
-            indexingPolicy: {
-              indexingMode: 'consistent'
-              automatic: true
-              includedPaths: [
-                {
-                  path: '/entra_oid/?'
-                }
-                {
-                  path: '/session_id/?'
-                }
-                {
-                  path: '/timestamp/?'
-                }
-                {
-                  path: '/type/?'
-                }
-              ]
-              excludedPaths: [
-                {
-                  path: '/*'
-                }
-              ]
-            }
-          }
-        ]
-      }
-    ]
-  }
-}
-
 // USER ROLES
 var principalType = empty(runningOnGh) && empty(runningOnAdo) ? 'User' : 'ServicePrincipal'
 
@@ -1147,16 +759,6 @@ module cognitiveServicesRoleUser 'core/security/role.bicep' = {
   }
 }
 
-module speechRoleUser 'core/security/role.bicep' = {
-  scope: az.resourceGroup(speechResourceGroupNameActual)
-  name: 'speech-role-user'
-  params: {
-    principalId: principalId
-    roleDefinitionId: 'f2dc8367-1007-4938-bd23-fe263f013447' // Cognitive Services Speech User
-    principalType: principalType
-  }
-}
-
 module storageRoleUser 'core/security/role.bicep' = {
   scope: az.resourceGroup(storageResourceGroupNameActual)
   name: 'storage-role-user'
@@ -1173,16 +775,6 @@ module storageContribRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
-    principalType: principalType
-  }
-}
-
-module storageOwnerRoleUser 'core/security/role.bicep' = if (useUserUpload) {
-  scope: az.resourceGroup(storageResourceGroupNameActual)
-  name: 'storage-owner-role-user'
-  params: {
-    principalId: principalId
-    roleDefinitionId: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b' // Storage Blob Data Owner
     principalType: principalType
   }
 }
@@ -1217,44 +809,6 @@ module searchSvcContribRoleUser 'core/security/role.bicep' = {
   }
 }
 
-module cosmosDbAccountContribRoleUser 'core/security/role.bicep' = if (useAuthentication && useChatHistoryCosmos) {
-  scope: az.resourceGroup(cosmosDbResourceGroupNameActual)
-  name: 'cosmosdb-account-contrib-role-user'
-  params: {
-    principalId: principalId
-    roleDefinitionId: '5bd9cd88-fe45-4216-938b-f97437e15450'
-    principalType: principalType
-  }
-}
-
-// RBAC for Cosmos DB
-// https://learn.microsoft.com/azure/cosmos-db/nosql/security/how-to-grant-data-plane-role-based-access
-module cosmosDbDataContribRoleUser 'core/security/documentdb-sql-role.bicep' = if (useAuthentication && useChatHistoryCosmos) {
-  scope: az.resourceGroup(cosmosDbResourceGroupNameActual)
-  name: 'cosmosdb-data-contrib-role-user'
-  params: {
-    databaseAccountName: (useAuthentication && useChatHistoryCosmos) ? cosmosDb!.outputs.name : ''
-    principalId: principalId
-    // Cosmos DB Built-in Data Contributor role
-    roleDefinitionId: (useAuthentication && useChatHistoryCosmos)
-      ? '/${subscription().id}/resourceGroups/${cosmosDb!.outputs.resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDb!.outputs.name}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
-      : ''
-  }
-}
-
-// SYSTEM IDENTITIES
-module openAiRoleBackend 'core/security/role.bicep' = if (isAzureOpenAiHost && deployAzureOpenAi) {
-  scope: az.resourceGroup(openAiResourceGroupNameActual)
-  name: 'openai-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
-    principalType: 'ServicePrincipal'
-  }
-}
-
 module openAiRoleSearchService 'core/security/role.bicep' = if (isAzureOpenAiHost && deployAzureOpenAi && searchServiceSkuName != 'free') {
   scope: az.resourceGroup(openAiResourceGroupNameActual)
   name: 'openai-role-searchservice'
@@ -1271,30 +825,6 @@ module visionRoleSearchService 'core/security/role.bicep' = if (useMultimodal &&
   params: {
     principalId: searchService.outputs.systemAssignedPrincipalId
     roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-module storageRoleBackend 'core/security/role.bicep' = {
-  scope: az.resourceGroup(storageResourceGroupNameActual)
-  name: 'storage-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1' // Storage Blob Data Reader
-    principalType: 'ServicePrincipal'
-  }
-}
-
-module storageOwnerRoleBackend 'core/security/role.bicep' = if (useUserUpload) {
-  scope: az.resourceGroup(storageResourceGroupNameActual)
-  name: 'storage-owner-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b' // Storage Blob Data Owner
     principalType: 'ServicePrincipal'
   }
 }
@@ -1361,60 +891,6 @@ module adlsStorageRoleFunctions 'core/security/storage-role.bicep' = if (useClou
   }
 }
 
-// Necessary for the Container Apps backend to store authentication tokens in the blob storage container
-module storageRoleContributorBackend 'core/security/role.bicep' = if (deploymentTarget == 'containerapps' && !empty(clientAppId)) {
-  scope: az.resourceGroup(storageResourceGroupNameActual)
-  name: 'storage-role-contributor-aca-backend'
-  params: {
-    principalId: acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Used to issue search queries
-// https://learn.microsoft.com/azure/search/search-security-rbac
-module searchRoleBackend 'core/security/role.bicep' = {
-  scope: az.resourceGroup(searchServiceResourceGroupNameActual)
-  name: 'search-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-module speechRoleBackend 'core/security/role.bicep' = {
-  scope: az.resourceGroup(speechResourceGroupNameActual)
-  name: 'speech-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: 'f2dc8367-1007-4938-bd23-fe263f013447' // Cognitive Services Speech User
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// RBAC for Cosmos DB
-// https://learn.microsoft.com/azure/cosmos-db/nosql/security/how-to-grant-data-plane-role-based-access
-module cosmosDbRoleBackend 'core/security/documentdb-sql-role.bicep' = if (useAuthentication && useChatHistoryCosmos) {
-  scope: az.resourceGroup(cosmosDbResourceGroupNameActual)
-  name: 'cosmosdb-role-backend'
-  params: {
-    databaseAccountName: (useAuthentication && useChatHistoryCosmos) ? cosmosDb!.outputs.name : ''
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    // Cosmos DB Built-in Data Contributor role
-    roleDefinitionId: (useAuthentication && useChatHistoryCosmos)
-      ? '/${subscription().id}/resourceGroups/${cosmosDb!.outputs.resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDb!.outputs.name}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
-      : ''
-  }
-}
-
 module isolation 'network-isolation.bicep' = if (usePrivateEndpoint) {
   name: 'networks'
   scope: resourceGroup
@@ -1422,7 +898,6 @@ module isolation 'network-isolation.bicep' = if (usePrivateEndpoint) {
     location: location
     tags: tags
     vnetName: '${abbrs.virtualNetworks}${resourceToken}'
-    deploymentTarget: deploymentTarget
     useVpnGateway: useVpnGateway
     vpnGatewayName: useVpnGateway ? '${abbrs.networkVpnGateways}${resourceToken}' : ''
     dnsResolverName: useVpnGateway ? '${abbrs.privateDnsResolver}${resourceToken}' : ''
@@ -1464,46 +939,22 @@ var cognitiveServicesPrivateEndpointConnection = (usePrivateEndpoint && (!useLoc
     ]
   : []
 
-var containerAppsPrivateEndpointConnection = (usePrivateEndpoint && deploymentTarget == 'containerapps')
-  ? [
-      {
-        groupId: 'managedEnvironments'
-        dnsZoneNames: ['privatelink.${location}.azurecontainerapps.io']
-        resourceIds: [containerApps!.outputs.environmentId]
-      }
-    ]
-  : []
-
-var appServicePrivateEndpointConnection = (usePrivateEndpoint && deploymentTarget == 'appservice')
-  ? [
-      {
-        groupId: 'sites'
-        dnsZoneNames: ['privatelink.azurewebsites.net']
-        resourceIds: [backend!.outputs.id]
-      }
-    ]
-  : []
 var otherPrivateEndpointConnections = (usePrivateEndpoint)
   ? [
       {
         groupId: 'blob'
         dnsZoneNames: ['privatelink.blob.${environmentData.suffixes.storage}']
-        resourceIds: concat([storage.outputs.id], useUserUpload ? [userStorage!.outputs.id] : [])
+        resourceIds: [storage.outputs.id]
       }
       {
         groupId: 'searchService'
         dnsZoneNames: ['privatelink.search.windows.net']
         resourceIds: [searchService.outputs.id]
       }
-      {
-        groupId: 'sql'
-        dnsZoneNames: ['privatelink.documents.azure.com']
-        resourceIds: (useAuthentication && useChatHistoryCosmos) ? [cosmosDb!.outputs.resourceId] : []
-      }
     ]
   : []
 
-var privateEndpointConnections = concat(otherPrivateEndpointConnections, openAiPrivateEndpointConnection, cognitiveServicesPrivateEndpointConnection, containerAppsPrivateEndpointConnection, appServicePrivateEndpointConnection)
+var privateEndpointConnections = concat(otherPrivateEndpointConnections, openAiPrivateEndpointConnection, cognitiveServicesPrivateEndpointConnection)
 
 module privateEndpoints 'private-endpoints.bicep' = if (usePrivateEndpoint) {
   name: 'privateEndpoints'
@@ -1524,62 +975,8 @@ module privateEndpoints 'private-endpoints.bicep' = if (usePrivateEndpoint) {
   dependsOn: [foundryProject]
 }
 
-// Used to read index definitions (required when using authentication)
-// https://learn.microsoft.com/azure/search/search-security-rbac
-module searchReaderRoleBackend 'core/security/role.bicep' = if (useAuthentication) {
-  scope: az.resourceGroup(searchServiceResourceGroupNameActual)
-  name: 'search-reader-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Used to add/remove documents from index (required for user upload feature)
-module searchContribRoleBackend 'core/security/role.bicep' = if (useUserUpload) {
-  scope: az.resourceGroup(searchServiceResourceGroupNameActual)
-  name: 'search-contrib-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// For Azure AI Vision access by the backend
-module visionRoleBackend 'core/security/role.bicep' = if (useMultimodal) {
-  scope: az.resourceGroup(visionResourceGroupNameActual)
-  name: 'vision-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// For document intelligence access by the backend
-module documentIntelligenceRoleBackend 'core/security/role.bicep' = if (useUserUpload) {
-  scope: az.resourceGroup(documentIntelligenceResourceGroupNameActual)
-  name: 'documentintelligence-role-backend'
-  params: {
-    principalId: (deploymentTarget == 'appservice')
-      ? backend!.outputs.identityPrincipalId
-      : acaBackend!.outputs.identityPrincipalId
-    roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-    principalType: 'ServicePrincipal'
-  }
-}
-
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenantId
-output AZURE_AUTH_TENANT_ID string = authTenantId
 output AZURE_RESOURCE_GROUP string = resourceGroup.name
 
 // Shared by all OpenAI deployments
@@ -1606,12 +1003,6 @@ output AZURE_OPENAI_EMB_DEPLOYMENT_SKU string = isAzureOpenAiHost ? embedding.de
 output AZURE_OPENAI_EVAL_DEPLOYMENT string = isAzureOpenAiHost && useEval ? eval.deploymentName : ''
 output AZURE_OPENAI_EVAL_DEPLOYMENT_SKU string = isAzureOpenAiHost && useEval ? eval.deploymentSkuName : ''
 output AZURE_OPENAI_EVAL_MODEL string = isAzureOpenAiHost && useEval ? eval.modelName : ''
-output AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT string = isAzureOpenAiHost && useAgenticKnowledgeBase ? knowledgeBase.deploymentName : ''
-output AZURE_OPENAI_KNOWLEDGEBASE_MODEL string = isAzureOpenAiHost && useAgenticKnowledgeBase ? knowledgeBase.modelName : ''
-output AZURE_OPENAI_REASONING_EFFORT string  = defaultReasoningEffort
-output AZURE_SEARCH_KNOWLEDGEBASE_RETRIEVAL_REASONING_EFFORT string = defaultRetrievalReasoningEffort
-output AZURE_SPEECH_SERVICE_ID string = useSpeechOutputAzure ? speech!.outputs.resourceId : ''
-output AZURE_SPEECH_SERVICE_LOCATION string = useSpeechOutputAzure ? speech!.outputs.location : ''
 
 output AZURE_VISION_ENDPOINT string = useMultimodal ? vision!.outputs.endpoint : ''
 output AZURE_CONTENTUNDERSTANDING_ENDPOINT string = useMediaDescriberAzureCU ? contentUnderstanding!.outputs.endpoint : ''
@@ -1620,17 +1011,11 @@ output AZURE_DOCUMENTINTELLIGENCE_SERVICE string = documentIntelligence.outputs.
 output AZURE_DOCUMENTINTELLIGENCE_RESOURCE_GROUP string = documentIntelligenceResourceGroupNameActual
 
 output AZURE_SEARCH_INDEX string = searchIndexName
-output AZURE_SEARCH_KNOWLEDGEBASE_NAME string = knowledgeBaseName
 output AZURE_SEARCH_SERVICE string = searchService.outputs.name
 output AZURE_SEARCH_SERVICE_RESOURCE_GROUP string = searchServiceResourceGroupNameActual
 output AZURE_SEARCH_SEMANTIC_RANKER string = actualSearchServiceSemanticRankerLevel
 output AZURE_SEARCH_FIELD_NAME_EMBEDDING string = searchFieldNameEmbedding
 output AZURE_SEARCH_USER_ASSIGNED_IDENTITY_RESOURCE_ID string = searchService.outputs.userAssignedIdentityResourceId
-
-output AZURE_COSMOSDB_ACCOUNT string = (useAuthentication && useChatHistoryCosmos) ? cosmosDb!.outputs.name : ''
-output AZURE_CHAT_HISTORY_DATABASE string = chatHistoryDatabaseName
-output AZURE_CHAT_HISTORY_CONTAINER string = chatHistoryContainerName
-output AZURE_CHAT_HISTORY_VERSION string = chatHistoryVersion
 
 output AZURE_STORAGE_ACCOUNT string = storage.outputs.name
 output AZURE_STORAGE_CONTAINER string = storageContainerName
@@ -1640,11 +1025,6 @@ output AZURE_ADLS_STORAGE_ACCOUNT string = useCloudIngestionAcls ? adlsStorageAc
 output AZURE_CLOUD_INGESTION_STORAGE_ACCOUNT string = useCloudIngestionAcls ? adlsStorageAccountNameResolved : storage.outputs.name
 output AZURE_CLOUD_INGESTION_STORAGE_RESOURCE_GROUP string = useCloudIngestionAcls ? adlsStorageResourceGroupNameActual : storageResourceGroupNameActual
 output USE_CLOUD_INGESTION_ACLS bool = useCloudIngestionAcls
-
-output AZURE_USERSTORAGE_ACCOUNT string = useUserUpload ? userStorage!.outputs.name : ''
-output AZURE_USERSTORAGE_CONTAINER string = userStorageContainerName
-output AZURE_USERSTORAGE_RESOURCE_GROUP string = storageResourceGroupNameActual
-
 
 output AZURE_IMAGESTORAGE_CONTAINER string = useMultimodal ? imageStorageContainerName : ''
 
@@ -1659,9 +1039,6 @@ output TEXT_PROCESSOR_SKILL_AUTH_RESOURCE_ID string = useCloudIngestion ? functi
 
 output AZURE_USE_AUTHENTICATION bool = useAuthentication
 
-output BACKEND_URI string = deploymentTarget == 'appservice' ? backend!.outputs.uri : acaBackend!.outputs.uri
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = deploymentTarget == 'containerapps'
-  ? containerApps!.outputs.registryLoginServer
-  : ''
+output SHAREPOINT_LOGIC_APP_NAME string = (useSharePointLogicApp && useCloudIngestion) ? sharePointIngestion!.outputs.logicAppName : ''
 
 output AZURE_VPN_CONFIG_DOWNLOAD_LINK string = useVpnGateway ? 'https://portal.azure.com/#@${tenant().tenantId}/resource${isolation!.outputs.virtualNetworkGatewayId}/pointtositeconfiguration' : ''

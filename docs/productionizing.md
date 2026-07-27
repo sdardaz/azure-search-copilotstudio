@@ -1,4 +1,4 @@
-# RAG chat: Productionizing the app
+# Productionizing the ingestion pipeline
 
 This sample is designed to be a starting point for your own production application,
 but you should do a thorough review of the security and performance before deploying
@@ -68,65 +68,19 @@ You can change the SKU by setting the `AZURE_SEARCH_SERVICE_SKU` azd environment
 the number of replicas by changing `replicaCount` in `infra/core/search/search-services.bicep`
 or manually scaling it from the Azure Portal.
 
-### Azure App Service
+### Azure Functions (cloud ingestion)
 
-The default app service plan uses the `Basic` SKU with 1 CPU core and 1.75 GB RAM.
-We recommend using a Premium level SKU, starting with 1 CPU core.
-You can use auto-scaling rules or scheduled scaling rules,
-and scale up the maximum/minimum based on load.
-
-### Azure Container Apps
-
-The default container app uses a "Consumption" workload profile with 1 CPU core and 2 GB RAM,
-and scaling rules that allow for scaling all the way down to 0 replicas when idle.
-For production, consider either increasing the CPU cores and memory or
-[switching to a "Dedicated" workload profile](azure_container_apps.md#customizing-workload-profile),
-and configure the scaling rules to keep at least two replicas running at all times.
-Learn more in the [Azure Container Apps documentation](https://learn.microsoft.com/azure/container-apps).
+If you've enabled [cloud ingestion](data_ingestion.md#cloud-ingestion) (`USE_CLOUD_INGESTION`), the default Function Apps use a Consumption plan. For large or continuously-updated document sets, consider a Premium plan for more predictable performance and to avoid cold starts, and increase the embedding model deployment capacity (`AZURE_OPENAI_EMB_DEPLOYMENT_CAPACITY`) so ingestion isn't rate-limited.
 
 ## Additional security measures
 
-* **Authentication**: By default, the deployed app is publicly accessible.
-  We recommend restricting access to authenticated users.
-  See [Enabling authentication](./deploy_features.md#enabling-authentication) to learn how to enable authentication.
-* **Networking**: We recommend [deploying inside a Virtual Network](./deploy_private.md). If the app is only for
+* **Access control**: By default, the search index has no document-level access restrictions, meaning any querying client (e.g. Copilot Studio) that can query the index can see all indexed content.
+  We recommend enabling [document-level access control](./login_and_acl.md) if different users should see different documents.
+* **Networking**: We recommend [deploying inside a Virtual Network](./deploy_private.md). If the index is only for
   internal enterprise use, use a private DNS zone. Also consider using Azure API Management (APIM)
   for firewalls and other forms of protection.
   For more details, read [Azure OpenAI Landing Zone reference architecture](https://techcommunity.microsoft.com/blog/azurearchitectureblog/azure-openai-landing-zone-reference-architecture/3882102).
 
-## Load testing
-
-We recommend running a loadtest for your expected number of users.
-You can use the [locust tool](https://docs.locust.io/) with the `locustfile.py` in this sample
-or set up a loadtest with Azure Load Testing.
-
-First make sure you have the locust package installed in your Python environment:
-
-```shell
-python -m pip install locust
-```
-
-Then run the locust command, specifying the name of the User class to use from `locustfile.py`. We've provided a `ChatUser` class that simulates a user asking questions and receiving answers.
-
-```shell
-locust ChatUser
-```
-
-Open the locust UI at [http://localhost:8089/](http://localhost:8089/), the URI displayed in the terminal.
-
-Start a new test with the URI of your website, e.g. `https://my-chat-app.azurewebsites.net`.
-Do *not* end the URI with a slash. You can start by pointing at your localhost if you're concerned
-more about load on OpenAI/AI Search than the host platform.
-
-For the number of users and spawn rate, we recommend starting with 20 users and 1 users/second.
-From there, you can keep increasing the number of users to simulate your expected load.
-
-Here's an example loadtest for 50 users and a spawn rate of 1 per second:
-
-![Screenshot of Locust charts showing 5 requests per second](images/screenshot_locust.png)
-
-After each test, check the local or App Service logs to see if there are any errors.
-
 ## Evaluation
 
-Before you make your chat app available to users, you'll want to rigorously evaluate the answer quality. You can use tools in [the AI RAG Chat evaluator](https://github.com/Azure-Samples/ai-rag-chat-evaluator) repository to run evaluations, review results, and compare answers across runs.
+Before you connect your index to Copilot Studio (or any other querying client), you'll want to rigorously evaluate retrieval quality. See [the evaluation guide](./evaluation.md) for generating ground truth data from your search index, and consider using tools in [the AI RAG Chat evaluator](https://github.com/Azure-Samples/ai-rag-chat-evaluator) repository if you have a chat client to evaluate end to end.

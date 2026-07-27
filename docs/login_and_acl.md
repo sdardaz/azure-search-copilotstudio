@@ -1,38 +1,28 @@
 <!--
 ---
-name: RAG chat with document security
-description: This guide demonstrates how to add an optional login and document level access control system to a RAG chat app for your domain data. This system can be used to restrict access to indexed data to specific users.
+name: Document-level access control for the Azure AI Search index
+description: This guide demonstrates how to add optional document-level access control to the documents ingested into Azure AI Search, so that querying clients (like Microsoft Copilot Studio) can restrict search results to documents a given user is permitted to see.
 languages:
 - python
-- typescript
 - bicep
 - azdeveloper
 products:
-- azure-openai
 - azure-cognitive-search
-- azure-app-service
 - azure
 page_type: sample
 urlFragment: azure-search-openai-demo-document-security
 ---
 -->
 
-# RAG chat: Setting up optional login and document level access control
+# Document-level access control for the Azure AI Search index
 
-[📺 Watch: (RAG Deep Dive series) Login and access control](https://www.youtube.com/watch?v=GwEiYJgM8Vw)
+This project can optionally attach document-level access control metadata to every chunk it indexes in Azure AI Search, using the [built-in document access control from Azure AI Search](https://learn.microsoft.com/azure/search/search-query-access-control-rbac-enforcement). This restricts which documents a given user or group can see when a querying client (such as Microsoft Copilot Studio, or any other app) searches the index with that user's identity.
 
-The [azure-search-openai-demo](/) project can set up a full RAG chat app on Azure AI Search and OpenAI so that you can chat on custom data, like internal enterprise data or domain-specific knowledge sets. For full instructions on setting up the project, consult the [main README](/README.md), and then return here for detailed instructions on configuring login and access control.
+This document covers how that access-control metadata (`oids` and `groups` fields) gets attached to documents during ingestion. It does **not** cover authenticating end users — this repository has no chat UI or login flow. How a querying client authenticates and supplies the appropriate authorization header when querying Azure AI Search depends on that client; see [the Copilot Studio integration guide](copilot_studio_integration.md) for how Copilot Studio connects to the index.
 
 ## Table of Contents
 
-- [Requirements](#requirements)
-- [Setting up Microsoft Entra applications](#setting-up-microsoft-entra-applications)
-  - [Automatic Setup](#automatic-setup)
-  - [Manual Setup](#manual-setup)
-    - [Server App](#server-app)
-    - [Client App](#client-app)
-    - [Configure Server App Known Client Applications](#configure-server-app-known-client-applications)
-  - [Troubleshooting Entra setup](#troubleshooting-entra-setup)
+- [Enabling the access control system](#enabling-the-access-control-system)
 - [Adding data with document level access control](#adding-data-with-document-level-access-control)
   - [Cloud ingestion with Azure Data Lake Storage Gen2](#cloud-ingestion-with-azure-data-lake-storage-gen2) (Recommended)
     - [Using your own ADLS Gen2 storage account](#using-your-own-adls-gen2-storage-account)
@@ -40,70 +30,28 @@ The [azure-search-openai-demo](/) project can set up a full RAG chat app on Azur
   - [Using the Add Documents API](#using-the-add-documents-api)
     - [Enabling global access on documents without access control](#enabling-global-access-on-documents-without-access-control)
 - [Migrate to built-in document access control](#migrate-to-built-in-document-access-control)
-- [Programmatic access with authentication](#programmatic-access-with-authentication)
 - [Environment variables reference](#environment-variables-reference)
-  - [Authentication behavior by environment](#authentication-behavior-by-environment)
 
-This guide demonstrates how to add an optional login and document level access control system to the sample. This system can be used to restrict access to indexed data to specific users based on what [Microsoft Entra groups](https://learn.microsoft.com/entra/fundamentals/how-to-manage-groups) they are a part of, or their [user object id](https://learn.microsoft.com/partner-center/find-ids-and-domain-names#find-the-user-object-id). This system utilizes the [built-in document access and control from Azure AI Search](https://learn.microsoft.com/azure/search/search-query-access-control-rbac-enforcement).
+## Enabling the access control system
 
-![AppLoginArchitecture](/docs/images/applogincomponents.png)
-
-## Requirements
-
-**IMPORTANT:** In order to add optional login and document level access control, you'll need the following in addition to the normal sample requirements
-
-- **Azure account permissions**: Your Azure account must have [permission to manage applications in Microsoft Entra](https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference#cloud-application-administrator).
-
-## Setting up Microsoft Entra applications
-
-Two Microsoft Entra applications must be registered in order to make the optional login and document level access control system work correctly. One app is for the client UI. The client UI is implemented as a [single page application](https://learn.microsoft.com/entra/identity-platform/scenario-spa-app-registration). The other app is for the API server. The API server uses a [confidential client](https://learn.microsoft.com/entra/identity-platform/msal-client-applications) to call the [Microsoft Graph API](https://learn.microsoft.com/graph/use-the-api).
-
-### Automatic Setup
-
-The easiest way to setup the two apps is to use the `azd` CLI. We've written scripts that will automatically create the two apps and configure them for use with the sample. To trigger the automatic setup, run the following commands:
-
-1. **Enable authentication for the app**
-  Run the following command to show the login UI and use Entra authentication by default:
+1. **Enable the access control system:**
 
     ```shell
     azd env set AZURE_USE_AUTHENTICATION true
     ```
 
 1. (Optional) **Enforce access control**
-  To ensure that the app restricts search results to only documents that the user has access to, run the following command:
+  To ensure that queries against the index are restricted to only documents the querying user has access to, run:
 
     ```shell
     azd env set AZURE_ENFORCE_ACCESS_CONTROL true
     ```
 
 1. (Optional) **Allow global document access**
-  To allow upload of documents that have global access when there are no document-specific access controls assigned, run the following command:
+  To allow documents that have no document-specific access controls assigned to be treated as globally accessible, run:
 
     ```shell
     azd env set AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS true
-    ```
-
-1. (Optional) **Allow unauthenticated access**
-  To allow unauthenticated users to use the app, run the following command:
-
-    ```shell
-    azd env set AZURE_ENABLE_UNAUTHENTICATED_ACCESS true
-    ```
-
-    Note: These users will not be able to search on documents that have access control assigned, so `AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS` should also be set to true to give them access to the remaining documents.
-
-1. **Set the authentication tenant ID**
-  Specify the tenant ID associated with authentication by running:
-
-    ```shell
-    azd env set AZURE_AUTH_TENANT_ID <YOUR-TENANT-ID>
-    ```
-
-1. **Login to the authentication tenant (if needed)**
-  If your auth tenant ID is different from your currently logged in tenant ID, run:
-
-    ```shell
-    azd auth login --tenant-id <YOUR-TENANT-ID>
     ```
 
 1. **Enable access control on your search index (if it already exists)**
@@ -116,109 +64,8 @@ The easiest way to setup the two apps is to use the `azd` CLI. We've written scr
 
     If your index does not exist yet, access control will be automatically enabled when the index is created during deployment.
 
-1. **Deploy the app**
-  Finally, run the following command to provision and deploy the app:
-
-    ```shell
-    azd up
-    ```
-
-### Manual Setup
-
-The following instructions explain how to setup the two apps using the Azure Portal.
-
-#### Server App
-
-- Sign in to the [Azure portal](https://portal.azure.com/).
-- Select the Microsoft Entra ID service.
-- In the left hand menu, select **Application Registrations**.
-- Select **New Registration**.
-  - In the **Name** section, enter a meaningful application name. This name will be displayed to users of the app, for example `Azure Search OpenAI Chat API`.
-  - Under **Supported account types**, select **Accounts in this organizational directory only**.
-- Select **Register** to create the application
-- In the app's registration screen, find the **Application (client) ID**.
-  - Run the following `azd` command to save this ID: `azd env set AZURE_SERVER_APP_ID <Application (client) ID>`.
-
-- Microsoft Entra supports three types of credentials to authenticate an app using the [client credentials](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-client-creds-grant-flow): passwords (app secrets), certificates, and federated identity credentials. For a higher level of security, either [certificates](https://learn.microsoft.com/entra/identity-platform/howto-create-self-signed-certificate) or federated identity credentials are recommended. This sample currently uses an app secret for ease of provisioning.
-
-- Select **Certificates & secrets** in the left hand menu.
-- In the **Client secrets** section, select **New client secret**.
-  - Type a description, for example `Azure Search OpenAI Chat Key`.
-  - Select one of the available key durations.
-  - The generated key value will be displayed after you select **Add**.
-  - Copy the generated key value and run the following `azd` command to save this ID: `azd env set AZURE_SERVER_APP_SECRET <generated key value>`.
-- Select **API Permissions** in the left hand menu. By default, the [delegated `User.Read`](https://learn.microsoft.com/graph/permissions-reference#user-permissions) permission should be present. This permission is required to read the signed-in user's profile.
-  - Select **Add a permission**, and then **Microsoft Graph**.
-  - Select **Delegated permissions**.
-  - Search for and and select `User.Read`.
-  - Select **Add permissions**.
-- Select **API Permissions** in the left hand menu. The server app will use the `user_impersonation` permission from Azure AI Search to issue a token for security filtering on behalf of the logged in user.
-  - Select **Add a permission**, and then **APIs my organization uses**.
-  - Search for and select **Azure Cognitive Search**.
-  - Select **Delegated permissions**.
-  - Search for and and select `user_impersonation`.
-  - Select **Add permissions**.
-- Select **Expose an API** in the left hand menu. The server app works by using the [On Behalf Of Flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow#protocol-diagram), which requires the server app to expose at least 1 API.
-  - The application must define a URI to expose APIs. Select **Add** next to **Application ID URI**.
-    - By default, the Application ID URI is set to `api://<application client id>`. Accept the default by selecting **Save**.
-  - Under **Scopes defined by this API**, select **Add a scope**.
-  - Fill in the values as indicated:
-    - For **Scope name**, use **access_as_user**.
-    - For **Who can consent?**, select **Admins and users**.
-    - For **Admin consent display name**, type **Access Azure Search OpenAI Chat API**.
-    - For **Admin consent description**, type **Allows the app to access Azure Search OpenAI Chat API as the signed-in user.**.
-    - For **User consent display name**, type **Access Azure Search OpenAI Chat API**.
-    - For **User consent description**, type **Allow the app to access Azure Search OpenAI Chat API on your behalf**.
-    - Leave **State** set to **Enabled**.
-    - Select **Add scope** at the bottom to save the scope.
-
-#### Client App
-
-- Sign in to the [Azure portal](https://portal.azure.com/).
-- Select the Microsoft Entra ID service.
-- In the left hand menu, select **Application Registrations**.
-- Select **New Registration**.
-  - In the **Name** section, enter a meaningful application name. This name will be displayed to users of the app, for example `Azure Search OpenAI Chat Web App`.
-  - Under **Supported account types**, select **Accounts in this organizational directory only**.
-  - Under `Redirect URI (optional)` section, select `Single-page application (SPA)` in the combo-box and enter the following redirect URI:
-    - If you are running the sample locally, add the endpoints `http://localhost:50505/redirect` and `http://localhost:5173/redirect`
-    - If you are running the sample on Azure, add the endpoints provided by `azd up`: `https://<your-endpoint>.azurewebsites.net/redirect`.
-    - If you are running the sample from Github Codespaces, add the Codespaces endpoint: `https://<your-codespace>-50505.app.github.dev/redirect`
-- Select **Register** to create the application
-- In the app's registration screen, find the **Application (client) ID**.
-  - Run the following `azd` command to save this ID: `azd env set AZURE_CLIENT_APP_ID <Application (client) ID>`.
-- In the left hand menu, select **Authentication**.
-  - Under Web, add a redirect URI with the endpoint provided by `azd up`: `https://<your-endpoint>.azurewebsites.net/.auth/login/aad/callback`.
-  - Under **Implicit grant and hybrid flows**, select **ID Tokens (used for implicit and hybrid flows)**
-  - Select **Save**
-- In the left hand menu, select **API permissions**. You will add permission to access the **access_as_user** API on the server app. This permission is required for the [On Behalf Of Flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow#protocol-diagram) to work.
-  - Select **Add a permission**, and then **My APIs**.
-  - In the list of applications, select your server application **Azure Search OpenAI Chat API**
-  - Ensure **Delegated permissions** is selected.
-  - In the **Select permissions** section, select the **access_as_user** permission
-  - Select **Add permissions**.
-- Stay in the **API permissions** section and select **Add a permission**.
-  - Select **Microsoft Graph**.
-  - Select **Delegated permissions**.
-  - Search for and select `User.Read`.
-  - Select **Add permissions**.
-
-#### Configure Server App Known Client Applications
-
-Consent from the user must be obtained for use of the client and server app. The client app can prompt the user for consent through a dialog when they log in. The server app has no ability to show a dialog for consent. Client apps can be [added to the list of known clients](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow#gaining-consent-for-the-middle-tier-application) to access the server app, so a consent dialog is shown for the server app.
-
-- Navigate to the server app registration
-- In the left hand menu, select **Manifest**
-- Replace `"knownClientApplications": []` with `"knownClientApplications": ["<client application id>"]`
-- Select **Save**
-
-### Troubleshooting Entra setup
-
-- If your primary tenant restricts the ability to create Entra applications, you'll need to use a separate tenant to create the Entra applications. You can create a new tenant by following [these instructions](https://learn.microsoft.com/entra/identity-platform/quickstart-create-new-tenant). Then run `azd env set AZURE_AUTH_TENANT_ID <YOUR-AUTH-TENANT-ID>` before running `azd up`.
-- If any Entra apps need to be recreated, you can avoid redeploying the app by [changing the app settings in the portal](https://learn.microsoft.com/azure/app-service/configure-common?tabs=portal#configure-app-settings). Any of the [required environment variables](#environment-variables-reference) can be changed. Once the environment variables have been changed, restart the web app.
-- It's possible a consent dialog will not appear when you log into the app for the first time. If this consent dialog doesn't appear, you will be unable to use the security filters because the API server app does not have permission to read your authorization information. A consent dialog can be forced to appear by adding `"prompt": "consent"` to the `loginRequest` property in [`authentication.py`](/app/backend/core/authentication.py)
-- It's possible that your tenant admin has placed a restriction on consent to apps with [unverified publishers](https://learn.microsoft.com/entra/identity-platform/publisher-verification-overview). In this case, only admins may consent to the client and server apps, and normal user accounts are unable to use the login system until the admin consents on behalf of the entire organization.
-- It's possible that your tenant admin requires [admin approval of all new apps](https://learn.microsoft.com/entra/identity/enterprise-apps/manage-consent-requests). Regardless of whether you select the delegated or admin permissions, the app will not work without tenant admin consent. See this guide for [granting consent to an app](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent?pivots=portal).
+1. **Deploy and ingest**
+  Run `azd up` to provision/update infrastructure and ingest data with access control metadata attached.
 
 ## Adding data with document level access control
 
@@ -226,9 +73,6 @@ The sample supports 2 main strategies for adding data with document level access
 
 - [Using cloud ingestion with Azure Data Lake Storage Gen2](#cloud-ingestion-with-azure-data-lake-storage-gen2) (Recommended). Uses Azure Functions and an Azure AI Search indexer to automatically extract ACLs from files stored in Azure Data Lake Storage Gen2 and index them with document-level access control.
 - [Using the Add Documents API](#using-the-add-documents-api). Sample scripts are provided which use the Azure AI Search Service Add Documents API to directly manage access control information on _existing documents_ in the index.
-
-> [!NOTE]
-> The previous "ADLS local file strategy" (using `prepdocs` directly against Azure Data Lake Storage) has been deprecated and removed. If you were using that approach in earlier versions of this sample, you must migrate to the cloud ingestion flow described in [Cloud ingestion with Azure Data Lake Storage Gen2](#cloud-ingestion-with-azure-data-lake-storage-gen2), which runs ingestion in Azure Functions and the Azure AI Search indexer instead of on the client machine.
 
 ### Cloud ingestion with Azure Data Lake Storage Gen2
 
@@ -430,59 +274,23 @@ The script supports the following commands. All commands support `-v` for verbos
 ## Migrate to built-in document access control
 
 Previous versions of the sample used [security filters](https://learn.microsoft.com/azure/search/search-security-trimming-for-azure-search) to implement document-level access control.
-To support [built-in access control](https://learn.microsoft.com/azure/search/search-query-access-control-rbac-enforcement), deployment takes the following steps:
+To support [built-in access control](https://learn.microsoft.com/azure/search/search-query-access-control-rbac-enforcement):
 
-1. Adds the `user_impersonation` permission for Azure AI Search to the server app
-2. Enables [permission filtering](https://learn.microsoft.com/azure/search/search-index-access-control-lists-and-rbac-push-api#create-an-index-with-permission-filter-fields) on the existing index.
-3. Sets the [x-ms-query-source-authorization](https://learn.microsoft.com/azure/search/search-query-access-control-rbac-enforcement#how-query-time-enforcement-works) header on every query when `AZURE_ENFORCE_ACCESS_CONTROL` is enabled.
+1. [Permission filtering](https://learn.microsoft.com/azure/search/search-index-access-control-lists-and-rbac-push-api#create-an-index-with-permission-filter-fields) is enabled on the index.
+2. Whatever client queries the index (e.g. Copilot Studio) is responsible for setting the [x-ms-query-source-authorization](https://learn.microsoft.com/azure/search/search-query-access-control-rbac-enforcement#how-query-time-enforcement-works) header with a token representing the querying user, when `AZURE_ENFORCE_ACCESS_CONTROL` is enabled on the index.
 
 When `AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS` was enabled, previous versions of the sample interpreted no access control on a document as meaning that the document was globally available. Built-in document access control requires [`["all"]`](https://learn.microsoft.com/azure/search/search-index-access-control-lists-and-rbac-push-api#special-acl-values-all-and-none) to be set for each globally available document. You can run a [one-time migration](#enabling-global-access-on-documents-without-access-control) on your existing index to enable global access for these documents.
 
-## Programmatic access with authentication
-
-If you want to use the chat endpoint without the UI and still use authentication, you must disable [App Service built-in authentication](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization) and use only the app's MSAL-based authentication flow. Ensure the `AZURE_DISABLE_APP_SERVICES_AUTHENTICATION` environment variable is set before deploying.
-
-Get an access token that can be used for calling the chat API using the following code:
-
-```python
-from azure.identity import DefaultAzureCredential
-import os
-
-token = DefaultAzureCredential().get_token(f"api://{os.environ['AZURE_SERVER_APP_ID']}/access_as_user", tenant_id=os.getenv('AZURE_AUTH_TENANT_ID', os.getenv('AZURE_TENANT_ID')))
-
-print(token.token)
-```
-
 ## Environment variables reference
 
-The following environment variables are used to setup the optional login and document level access control:
+The following environment variables are used to setup the optional document level access control system:
 
-- `AZURE_USE_AUTHENTICATION`: Enables Entra ID login and document level access control. Set to true before running `azd up`.
-- `AZURE_ENFORCE_ACCESS_CONTROL`: Enforces Entra ID based login and document level access control on documents with access control assigned. Set to true before running `azd up`. If `AZURE_ENFORCE_ACCESS_CONTROL` is enabled and `AZURE_ENABLE_UNAUTHENTICATED_ACCESS` is not enabled, then authentication is required to use the app.
+- `AZURE_USE_AUTHENTICATION`: Enables document level access control metadata during ingestion. Set to true before running `azd up`.
+- `AZURE_ENFORCE_ACCESS_CONTROL`: Enforces access-control filtering fields on the index. Set to true before running `azd up`.
 - `AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS`: Enables prepdocs upload code to support setting user ids and group ids to `["all"]` when uploading documents that have no access control assigned. This will enable the built-in document level access control to return these documents if `AZURE_ENFORCE_ACCESS_CONTROL` is enabled. If you are migrating from a previous version where this was not required, you'll have to perform a [one-time migration](#migrate-to-built-in-document-access-control) to enable global document access.
-- `AZURE_ENABLE_UNAUTHENTICATED_ACCESS`: Allows unauthenticated users to access the chat app. If `AZURE_ENFORCE_ACCESS_CONTROL` is enabled, unauthenticated users cannot search on documents.
-- `AZURE_DISABLE_APP_SERVICES_AUTHENTICATION`: Disables [use of built-in authentication for App Services](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization). An authentication flow based on the MSAL SDKs is used instead. Useful when you want to provide programmatic access to the chat endpoints with authentication.
-- `AZURE_SERVER_APP_ID`: (Required) Application ID of the Microsoft Entra app for the API server.
-- `AZURE_SERVER_APP_SECRET`: [Client secret](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-client-creds-grant-flow) used by the API server to authenticate using the Microsoft Entra server app.
-- `AZURE_CLIENT_APP_ID`: Application ID of the Microsoft Entra app for the client UI.
-- `AZURE_AUTH_TENANT_ID`: [Tenant ID](https://learn.microsoft.com/entra/fundamentals/how-to-find-tenant) associated with the Microsoft Entra tenant used for login and document level access control. Defaults to `AZURE_TENANT_ID` if not defined.
 - `USE_CLOUD_INGESTION_ACLS`: (Optional) Set to `true` to enable automatic ACL extraction from ADLS Gen2 files during cloud ingestion. Requires `USE_CLOUD_INGESTION` to also be set to `true`. Used with [cloud ingestion](#cloud-ingestion-with-azure-data-lake-storage-gen2).
 - `USE_EXISTING_ADLS_STORAGE`: (Optional) Set to `true` to use an existing ADLS Gen2 storage account instead of provisioning a new one. Used with [cloud ingestion](#using-your-own-adls-gen2-storage-account).
 - `AZURE_ADLS_GEN2_STORAGE_ACCOUNT`: (Optional) Name of existing [Data Lake Storage Gen2 storage account](https://learn.microsoft.com/azure/storage/blobs/data-lake-storage-introduction) for storing sample data with [access control lists](https://learn.microsoft.com/azure/storage/blobs/data-lake-storage-access-control). Required when `USE_EXISTING_ADLS_STORAGE` is `true`. Used with [cloud ingestion](#cloud-ingestion-with-azure-data-lake-storage-gen2).
 - `AZURE_ADLS_GEN2_STORAGE_RESOURCE_GROUP`: (Optional) Resource group containing the existing ADLS Gen2 storage account. Defaults to the main resource group if not specified. Used with [cloud ingestion](#using-your-own-adls-gen2-storage-account).
 - `AZURE_ADLS_GEN2_FILESYSTEM`: (Optional) Name of existing [Data Lake Storage Gen2 filesystem](https://learn.microsoft.com/azure/storage/blobs/data-lake-storage-introduction) for storing sample data with [access control lists](https://learn.microsoft.com/azure/storage/blobs/data-lake-storage-access-control). Used with [cloud ingestion](#cloud-ingestion-with-azure-data-lake-storage-gen2).
-
-### Authentication behavior by environment
-
-This application uses an in-memory token cache. User sessions are only available in memory while the application is running. When the application server is restarted, all users will need to log-in again.
-
-The following table describes the impact of the `AZURE_USE_AUTHENTICATION` and `AZURE_ENFORCE_ACCESS_CONTROL` variables depending on the environment you are deploying the application in:
-
-| AZURE_USE_AUTHENTICATION | AZURE_ENFORCE_ACCESS_CONTROL | Environment | Default Behavior |
-|-|-|-|-|
-| True | False | App Services | Use integrated auth <br /> Login page blocks access to app <br /> User can opt-into access control in developer settings <br /> Allows unrestricted access to sources |
-| True | True | App Services | Use integrated auth <br /> Login page blocks access to app <br /> User must use access control |
-| True | False | Local or Codespaces | Do not use integrated auth <br /> Can use app without login <br /> User can opt-into access control in developer settings <br /> Allows unrestricted access to sources |
-| True | True | Local or Codespaces | Do not use integrated auth <br /> Cannot use app without login <br /> Behavior is chat box is greyed out with default “Please login message” <br /> User must use login button to make chat box usable <br /> User must use access control when logged in |
-| False | False | All | No login or access control |
-| False | True | All | Invalid setting |
+</content>
