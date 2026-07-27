@@ -1,4 +1,7 @@
-# RAG chat: Using agentic retrieval
+# Using agentic retrieval
+
+> [!NOTE]
+> This feature was originally consumed by the chat backend that has been removed from this fork (this repository is now an ingestion-only pipeline for Microsoft Copilot Studio). The `USE_AGENTIC_KNOWLEDGEBASE`/`USE_WEB_SOURCE`/`USE_SHAREPOINT_SOURCE` Bicep parameters and knowledge-agent provisioning have been removed from `infra/main.bicep` accordingly, so the steps below are currently **disabled by default and not wired up to provisioning**. The underlying [agentic retrieval feature of Azure AI Search](https://learn.microsoft.com/azure/search/search-agentic-retrieval-concept) itself still exists and works against any Azure AI Search index — if you want to use it (e.g. from a custom querying client), you'd need to re-add the corresponding Bicep parameters and knowledge-agent provisioning, and set the environment variables described below yourself.
 
 This repository includes an optional feature that uses [agentic retrieval from Azure AI Search](https://learn.microsoft.com/azure/search/search-agentic-retrieval-concept) to find the most relevant content given a user's conversation history. The agentic retrieval feature uses a LLM to analyze the conversation and generate multiple search queries to find relevant content. This can improve the quality of the responses, especially for complex or multi-faceted questions.
 

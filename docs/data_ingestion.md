@@ -1,8 +1,8 @@
-# RAG chat: Data ingestion
+# Data ingestion
 
-The [azure-search-openai-demo](/) project can set up a full RAG chat app on Azure AI Search and OpenAI so that you can chat on custom data, like internal enterprise data or domain-specific knowledge sets. For full instructions on setting up the project, consult the [main README](/README.md), and then return here for detailed instructions on the data ingestion component.
+This project populates an Azure AI Search index with your documents, so that a querying client (like Microsoft Copilot Studio) can search over them. For full instructions on setting up the project, consult the [main README](/README.md), and then return here for detailed instructions on the data ingestion component.
 
-The chat app provides two ways to ingest data: manual ingestion and cloud ingestion. Both approaches use the same code for processing the data, but the manual ingestion runs locally while cloud ingestion runs in Azure Functions as Azure AI Search custom skills.
+There are two ways to ingest data: local ingestion and cloud ingestion. Both approaches use the same code for processing the data, but local ingestion runs on your machine while cloud ingestion runs in Azure Functions as Azure AI Search custom skills.
 
 - [Supported document formats](#supported-document-formats)
 - [Ingestion stages](#ingestion-stages)
@@ -72,7 +72,7 @@ First, figure placeholders in the page text are replaced with full HTML markup t
 
 Next, the combined text is split into chunks using a sentence-aware splitter that respects semantic boundaries. The default chunk size is approximately 1000 characters (roughly 400-500 tokens for English), with a 10% overlap between consecutive chunks to preserve context across boundaries. The splitter uses a sliding window approach, ensuring that sentences ending one chunk also start the next, which reduces the risk of losing important context at chunk boundaries.
 
-**Why chunk documents?** While Azure AI Search can index full documents, chunking is essential for the RAG pattern because it limits the amount of information sent to OpenAI, which has token limits for context windows. By breaking content into focused chunks, the system can retrieve and inject only the most relevant pieces of text into the LLM prompt, improving both response quality and cost efficiency.
+**Why chunk documents?** While Azure AI Search can index full documents, chunking is essential for the RAG pattern because it limits the amount of information a querying client needs to send to an LLM, which has token limits for context windows. By breaking content into focused chunks, a querying client (like Microsoft Copilot Studio) can retrieve and inject only the most relevant pieces of text into its LLM prompt, improving both response quality and cost efficiency.
 
 If needed, you can modify the chunking algorithm in `app/backend/prepdocslib/textsplitter.py`. For a deeper, diagram-rich explanation of how the splitter works (figures, recursion, merge heuristics, guarantees, and examples), see the [text splitter documentation](./textsplitter.md).
 
@@ -115,9 +115,7 @@ The script uses the following steps to index documents:
 
 ### Enhancing search functionality with data categorization
 
-To enhance search functionality, categorize data during the ingestion process with the `--category` argument, for example `scripts/prepdocs.ps1 --category ExampleCategoryName`. This argument specifies the category to which the data belongs, enabling you to filter search results based on these categories.
-
-After running the script with the desired category, ensure these categories are added to the 'Include Category' dropdown list. This can be found in the developer settings in [`Settings.tsx`](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/app/frontend/src/components/Settings/Settings.tsx). The default option for this dropdown is "All". By including specific categories, you can refine your search results more effectively.
+To enhance search functionality, categorize data during the ingestion process with the `--category` argument, for example `scripts/prepdocs.ps1 --category ExampleCategoryName`. This argument specifies the category to which the data belongs, and is stored in the `category` field of each indexed chunk, letting any querying client filter search results by category.
 
 ### Indexing additional documents
 

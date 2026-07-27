@@ -49,12 +49,6 @@ Install the pre-commit hooks:
 pre-commit install
 ```
 
-Compile the JavaScript:
-
-```shell
-( cd ./app/frontend ; npm install ; npm run build )
-```
-
 ## Running unit tests
 
 Run the tests:

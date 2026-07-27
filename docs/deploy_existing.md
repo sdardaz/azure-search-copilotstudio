@@ -1,5 +1,5 @@
 
-# RAG chat: Deploying with existing Azure resources
+# Deploying with existing Azure resources
 
 If you already have existing Azure resources, or if you want to specify the exact name of new Azure Resource, you can do so by setting `azd` environment values.
 You should set these values before running `azd up`. Once you've set them, return to the [deployment steps](../README.md#deploying).
@@ -7,10 +7,8 @@ You should set these values before running `azd up`. Once you've set them, retur
 * [Resource group](#resource-group)
 * [OpenAI resource](#openai-resource)
 * [Azure AI Search resource](#azure-ai-search-resource)
-* [Azure App Service Plan and App Service resources](#azure-app-service-plan-and-app-service-resources)
 * [Azure AI Vision resources](#azure-ai-vision-resources)
 * [Azure Document Intelligence resource](#azure-document-intelligence-resource)
-* [Azure Speech resource](#azure-speech-resource)
 * [Azure Storage Account](#azure-storage-account)
 
 > [!NOTE]
@@ -57,7 +55,7 @@ You should set these values before running `azd up`. Once you've set them, retur
 When you run `azd up` after and are prompted to select a value for `openAiResourceGroupLocation`, make sure to select the same location as the existing OpenAI resource group.
 
 > [!WARNING]
-> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services OpenAI User` for the backend and search service. You may need to manually assign these roles.
+> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services OpenAI User` for the ingestion identity (local user, or Function Apps if cloud ingestion is enabled) and search service. You may need to manually assign these roles.
 
 ### Openai.com OpenAI
 
@@ -93,12 +91,6 @@ You can also customize the search service (new or existing) for non-English sear
 > * Backend identity: `Search Index Data Reader`, `Search Index Data Contributor`
 > * Signed-in user (`principalId`): `Search Index Data Reader`, `Search Index Data Contributor`, `Search Service Contributor`
 
-## Azure App Service Plan and App Service resources
-
-1. Run `azd env set AZURE_APP_SERVICE_PLAN {Name of existing Azure App Service Plan}`
-1. Run `azd env set AZURE_APP_SERVICE {Name of existing Azure App Service}`.
-1. Run `azd env set AZURE_APP_SERVICE_SKU {SKU of Azure App Service, defaults to B1}`.
-
 ## Azure AI Vision resources
 
 1. Run `azd env set AZURE_VISION_SERVICE {Name of existing Azure AI Vision Service Name}`
@@ -107,7 +99,7 @@ You can also customize the search service (new or existing) for non-English sear
 1. Run `azd env set AZURE_VISION_SKU {SKU of Azure AI Vision service, defaults to F0}`
 
 > [!WARNING]
-> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services User` for the backend and search service. You may need to manually assign these roles.
+> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services User` for the ingestion identity (local user, or Function Apps if cloud ingestion is enabled) and search service. You may need to manually assign these roles.
 
 ## Azure Document Intelligence resource
 
@@ -120,18 +112,7 @@ If your existing resource is in one of those regions, then you can re-use it by 
 1. Run `azd env set AZURE_DOCUMENTINTELLIGENCE_SKU {SKU of existing service, defaults to S0}`
 
 > [!WARNING]
-> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services User` for the backend (required for user upload feature). You may need to manually assign these roles.
-
-## Azure Speech resource
-
-1. Run `azd env set AZURE_SPEECH_SERVICE {Name of existing Azure Speech service}`
-1. Run `azd env set AZURE_SPEECH_SERVICE_RESOURCE_GROUP {Name of existing resource group with speech service}`
-1. If that resource group is in a different location than the one you'll pick for the `azd up` step,
-  then run `azd env set AZURE_SPEECH_SERVICE_LOCATION {Location of existing service}`
-1. If the speech service's SKU is not "S0", then run `azd env set AZURE_SPEECH_SERVICE_SKU {Name of SKU}`.
-
-> [!WARNING]
-> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services Speech User` for the backend and user. You may need to manually assign these roles.
+> If using a different resource group, the following RBAC roles may not be assigned correctly: `Cognitive Services User` for the ingestion identities (local user and, if cloud ingestion is enabled, the Function Apps). You may need to manually assign these roles.
 
 ## Azure Storage Account
 
@@ -142,4 +123,4 @@ If your existing resource is in one of those regions, then you can re-use it by 
 1. To change the storage SKU from the default `Standard_LRS`, run `azd env set AZURE_STORAGE_SKU {Name of SKU}`. For production, we recommend `Standard_ZRS` for improved resiliency.
 
 > [!WARNING]
-> If using a different resource group, the following RBAC roles may not be assigned correctly: `Storage Blob Data Reader`, `Storage Blob Data Contributor`, and `Storage Blob Data Owner` for the backend, user, and search service. You may need to manually assign these roles.
+> If using a different resource group, the following RBAC roles may not be assigned correctly: `Storage Blob Data Reader`, `Storage Blob Data Contributor`, and `Storage Blob Data Owner` for the ingestion identity (local user, or Function Apps if cloud ingestion is enabled) and search service. You may need to manually assign these roles.

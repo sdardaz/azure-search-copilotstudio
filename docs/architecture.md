@@ -1,187 +1,136 @@
-# RAG Chat: Application Architecture
+# Application Architecture
 
-This document provides a detailed architectural overview of this application, a Retrieval Augmented Generation (RAG) application that creates a ChatGPT-like experience over your own documents. It combines Azure OpenAI Service for AI capabilities with Azure AI Search for document indexing and retrieval.
+This document provides a detailed architectural overview of this project: an Azure AI Search ingestion pipeline that populates an index for Microsoft Copilot Studio's native "Azure AI Search" knowledge source connector. There is no chat UI or chat backend in this repository — Copilot Studio (or any other querying client) is responsible for the conversational experience and for querying the index directly.
 
 For getting started with the application, see the main [README](../README.md).
 
 ## Architecture Diagram
 
-The following diagram illustrates the complete architecture including user interaction flow, application components, and Azure services:
+The following diagram illustrates the ingestion pipeline components and how they connect to Azure services, plus how a querying client consumes the resulting index:
 
 ```mermaid
 graph TB
-    subgraph "User Interface"
-        User[👤 User]
-        Browser[🌐 Web Browser]
+    subgraph "Sources"
+        LocalFiles[📁 Local data folder]
+        SharePoint[📚 SharePoint Online<br/>optional, via Logic App]
     end
 
-    subgraph "Application Layer"
-        subgraph "Frontend"
-            React[⚛️ React/TypeScript App<br/>Chat Interface<br/>Settings Panel<br/>Citation Display]
-        end
-
-        subgraph "Backend"
-            API[🐍 Python API<br/>Flask/Quart<br/>Chat Endpoints<br/>Document Upload<br/>Authentication]
-
-            subgraph "Approaches"
-                CRR[ChatReadRetrieveRead<br/>Approach]
-            end
-        end
+    subgraph "Ingestion"
+        PrepDocs[⚙️ prepdocs.py<br/>Local ingestion CLI]
+        Indexer[🔁 Azure AI Search Indexer<br/>optional cloud ingestion]
+        Functions[⚡ Azure Functions<br/>document_extractor<br/>figure_processor<br/>text_processor]
     end
 
-    subgraph "Azure Services"
-        subgraph "AI Services"
-            OpenAI[🤖 Azure OpenAI<br/>GPT-4 Mini<br/>Text Embeddings<br/>GPT-4 Vision]
-            Search[🔍 Azure AI Search<br/>Vector Search<br/>Semantic Ranking<br/>Full-text Search]
-            DocIntel[📄 Azure Document<br/>Intelligence<br/>Text Extraction<br/>Layout Analysis]
-            Vision2[👁️ Azure AI Vision<br/>optional]
-            Speech[🎤 Azure Speech<br/>Services optional]
-        end
-
-        subgraph "Storage & Data"
-            Blob[💾 Azure Blob Storage<br/>Document Storage<br/>User Uploads]
-            Cosmos[🗃️ Azure Cosmos DB<br/>Chat History<br/>optional]
-        end
-
-        subgraph "Platform Services"
-            ContainerApps[📦 Azure Container Apps<br/>or App Service<br/>Application Hosting]
-            AppInsights[📊 Application Insights<br/>Monitoring<br/>Telemetry]
-            KeyVault[🔐 Azure Key Vault<br/>Secrets Management]
-        end
+    subgraph "Azure AI Services"
+        OpenAI[🤖 Azure OpenAI / Foundry<br/>Embeddings<br/>Vision-capable model for figure descriptions]
+        DocIntel[📄 Azure Document Intelligence<br/>Text/Table/Figure Extraction]
+        Vision2[👁️ Azure AI Vision<br/>optional, image embeddings]
+        CU[🖼️ Azure Content Understanding<br/>optional, media description]
     end
 
-    subgraph "Data Processing"
-        PrepDocs[⚙️ Document Preparation<br/>Pipeline<br/>Text Extraction<br/>Chunking<br/>Embedding Generation<br/>Indexing]
+    subgraph "Storage & Index"
+        Blob[💾 Azure Blob Storage<br/>Source Documents]
+        Search[🔍 Azure AI Search Index<br/>Vector + Full-text + Semantic]
     end
 
-    %% User Interaction Flow
-    User -.-> Browser
-    Browser <--> React
-    React <--> API
+    subgraph "Platform Services"
+        AppInsights[📊 Application Insights<br/>Monitoring, optional]
+    end
 
-    %% Backend Processing
-    API --> CRR
+    subgraph "Consumer"
+        Copilot[💬 Microsoft Copilot Studio<br/>Azure AI Search knowledge source]
+    end
 
-    %% Azure Service Connections
-    API <--> OpenAI
-    API <--> Search
-    API <--> Blob
-    API <--> Cosmos
-    API <--> Speech
+    LocalFiles --> PrepDocs
+    SharePoint -.Logic App sync.-> Blob
 
-    %% Document Processing Flow
-    Blob --> PrepDocs
+    PrepDocs --> Blob
     PrepDocs --> DocIntel
     PrepDocs --> OpenAI
+    PrepDocs --> Vision2
+    PrepDocs --> CU
     PrepDocs --> Search
 
-    %% Platform Integration
-    ContainerApps --> API
-    API --> AppInsights
-    API --> KeyVault
+    Blob --> Indexer
+    Indexer --> Functions
+    Functions --> DocIntel
+    Functions --> OpenAI
+    Functions --> Vision2
+    Functions --> CU
+    Indexer --> Search
 
-    %% Styling
-    classDef userLayer fill:#e1f5fe
-    classDef appLayer fill:#f3e5f5
+    Functions --> AppInsights
+    Search --> AppInsights
+
+    Copilot -->|queries| Search
+
+    classDef sourceLayer fill:#e1f5fe
+    classDef ingestLayer fill:#f3e5f5
     classDef azureAI fill:#e8f5e8
     classDef azureStorage fill:#fff3e0
     classDef azurePlatform fill:#fce4ec
-    classDef processing fill:#f1f8e9
+    classDef consumer fill:#f1f8e9
 
-    class User,Browser userLayer
-    class React,API,CRR appLayer
-    class OpenAI,Search,DocIntel,Vision2,Speech azureAI
-    class Blob,Cosmos azureStorage
-    class ContainerApps,AppInsights,KeyVault azurePlatform
-    class PrepDocs processing
+    class LocalFiles,SharePoint sourceLayer
+    class PrepDocs,Indexer,Functions ingestLayer
+    class OpenAI,DocIntel,Vision2,CU azureAI
+    class Blob,Search azureStorage
+    class AppInsights azurePlatform
+    class Copilot consumer
 ```
 
-## Chat Query Flow
+## Local Ingestion Flow
 
-The following sequence diagram shows how a user query is processed:
+The following diagram shows how `prepdocs.py` processes documents from the local `data` folder:
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant B as Backend API
-    participant S as Azure AI Search
-    participant O as Azure OpenAI
-    participant Bl as Blob Storage
-
-    U->>F: Enter question
-    F->>B: POST /chat with query
-    B->>S: Search for relevant documents
-    S-->>B: Return search results with citations
-    B->>O: Send query + context to GPT model
-    O-->>B: Return AI response
-    B->>Bl: Log interaction (optional)
-    B-->>F: Return response with citations
-    F-->>U: Display answer with sources
-```
-
-## Document Ingestion Flow
-
-The following diagram shows how documents are processed and indexed:
-
-```mermaid
-sequenceDiagram
-    participant D as Documents
-    participant Bl as Blob Storage
-    participant P as PrepDocs Script
+    participant D as data/ folder
+    participant P as prepdocs.py
     participant DI as Document Intelligence
     participant O as Azure OpenAI
+    participant Bl as Blob Storage
     participant S as Azure AI Search
 
-    D->>Bl: Upload documents
-    P->>Bl: Read documents
-    P->>DI: Extract text and layout
+    D->>P: Read documents
+    P->>DI: Extract text, tables, figures
     DI-->>P: Return extracted content
     P->>P: Split into chunks
-    P->>O: Generate embeddings
-    O-->>P: Return vector embeddings
+    P->>O: Generate embeddings (and figure descriptions, if multimodal)
+    O-->>P: Return vectors / descriptions
+    P->>Bl: Upload source document (and images, if multimodal)
     P->>S: Index documents with embeddings
     S-->>P: Confirm indexing complete
 ```
 
+## Cloud Ingestion Flow
+
+When `USE_CLOUD_INGESTION` is enabled, an Azure AI Search indexer drives the same processing steps using Azure Functions as custom skills, instead of running `prepdocs.py` locally. See [the data ingestion guide](data_ingestion.md#cloud-ingestion) for the full skillset architecture.
+
 ## Key Components
 
-### Frontend (React/TypeScript)
+### Ingestion (Python)
 
-- **Chat Interface**: Main conversational UI
-- **Settings Panel**: Configuration options for AI behavior
-- **Citation Display**: Shows sources and references
-- **Authentication**: Optional user login integration
-
-### Backend (Python)
-
-- **API Layer**: RESTful endpoints for chat, search, and configuration. See [HTTP Protocol](http_protocol.md) for detailed API documentation.
-- **Approach Patterns**: Different strategies for processing queries
-  - `ChatReadRetrieveRead`: Multi-turn conversation with retrieval
-- **Authentication**: Optional integration with Azure Active Directory
+- **app/backend/prepdocslib**: Shared parsing, chunking, embedding, and Azure AI Search index/indexer management library, used by both local and cloud ingestion. See [AGENTS.md](../AGENTS.md#overall-code-layout) for a file-by-file breakdown.
+- **app/backend/prepdocs.py**: CLI entry point for local ingestion.
+- **app/backend/setup_cloud_ingestion.py**: Configures the Azure AI Search indexer/skillset for cloud ingestion.
+- **app/functions**: Azure Functions implementing the document-extraction, figure-processing, and text-processing custom skills used by cloud ingestion.
 
 ### Azure Services Integration
 
-- **Azure OpenAI**: Powers the conversational AI capabilities
-- **Azure AI Search**: Provides semantic and vector search over documents
-- **Azure Blob Storage**: Stores original documents and processed content
-- **Application Insights**: Provides monitoring and telemetry
+- **Azure AI Search**: Hosts the index queried by Copilot Studio, and (for cloud ingestion) the indexer and skillset.
+- **Azure OpenAI / Foundry**: Provides the embedding model, and a vision-capable model used only for ingestion-time figure descriptions.
+- **Azure Document Intelligence**: Extracts text, tables, and figures from PDFs, Office documents, and images.
+- **Azure Blob Storage**: Stores the original documents that feed ingestion.
+- **Application Insights**: Provides monitoring and telemetry for Azure AI Search operations and (if cloud ingestion is enabled) the Function Apps.
 
 ## Optional Features
 
 The architecture supports several optional features that can be enabled. For detailed configuration instructions, see the [optional features guide](deploy_features.md):
 
-- **GPT-4 with Vision**: Process image-heavy documents
-- **Speech Services**: Voice input/output capabilities
-- **Chat History**: Persistent conversation storage in Cosmos DB
-- **Authentication**: User login and access control
-- **Private Endpoints**: Network isolation for enhanced security
-
-## Deployment Options
-
-The application can be deployed using:
-
-- **Azure Container Apps** (default): Serverless container hosting
-- **Azure App Service**: Traditional PaaS hosting option. See the [App Service hosting guide](appservice.md) for detailed instructions.
-
-Both options support the same feature set and can be configured through the Azure Developer CLI (azd).
+- **Multimodal ingestion**: Image embeddings and figure descriptions for image-heavy documents.
+- **Cloud ingestion**: Runs ingestion as an Azure AI Search indexer + Azure Functions pipeline instead of a local script.
+- **Document-level access control**: Restricts which documents a querying user can see.
+- **Private endpoints**: Network isolation for enhanced security.
+- **SharePoint sync**: An optional Azure Logic App that syncs documents from SharePoint Online into Blob Storage — see [the Copilot Studio integration guide](copilot_studio_integration.md).
+</content>

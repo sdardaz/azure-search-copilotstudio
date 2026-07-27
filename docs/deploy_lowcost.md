@@ -1,6 +1,6 @@
-# RAG chat: Deploying with minimal costs
+# Deploying with minimal costs
 
-This AI RAG chat application is designed to be easily deployed using the Azure Developer CLI, which provisions the infrastructure according to the Bicep files in the `infra` folder. Those files describe each of the Azure resources needed, and configures their SKU (pricing tier) and other parameters. Many Azure services offer a free tier, but the infrastructure files in this project do *not* default to the free tier as there are often limitations in that tier.
+This Azure AI Search ingestion pipeline is designed to be easily deployed using the Azure Developer CLI, which provisions the infrastructure according to the Bicep files in the `infra` folder. Those files describe each of the Azure resources needed, and configures their SKU (pricing tier) and other parameters. Many Azure services offer a free tier, but the infrastructure files in this project do *not* default to the free tier as there are often limitations in that tier.
 
 However, if your goal is to minimize costs while prototyping your application, follow the steps below *before* running `azd up`. Once you've gone through these steps, return to the [deployment steps](../README.md#deploying).
 
@@ -21,27 +21,6 @@ However, if your goal is to minimize costs while prototyping your application, f
     Enter a name that will be used for the resource group.
     This will create a new folder in the `.azure` folder, and set it as the active environment for any calls to `azd` going forward.
 
-1. Switch from Azure Container Apps to the free tier of Azure App Service:
-
-    Azure Container Apps has a consumption-based pricing model that is very low cost, but it is not free, plus Azure Container Registry costs a small amount each month.
-
-    To deploy to App Service instead:
-
-    * Comment out `host: containerapp` and uncomment `host: appservice` in the [azure.yaml](../azure.yaml) file.
-    * Set the deployment target to `appservice`:
-
-        ```shell
-        azd env set DEPLOYMENT_TARGET appservice
-        ```
-
-    * Set the App Service SKU to the free tier:
-
-        ```shell
-        azd env set AZURE_APP_SERVICE_SKU F1
-        ```
-
-    Limitation: You are only allowed a certain number of free App Service instances per region. If you have exceeded your limit in a region, you will get an error during the provisioning stage. If that happens, you can run `azd down`, then `azd env new` to create a new environment with a new region.
-
 1. Use the free tier of Azure AI Search:
 
     ```shell
@@ -51,9 +30,8 @@ However, if your goal is to minimize costs while prototyping your application, f
     Limitations:
     1. You are only allowed one free search service across all regions.
     If you have one already, either delete that service or follow instructions to
-    reuse your [existing search service](../README.md#existing-azure-ai-search-resource).
-    2. The free tier does not support semantic ranker, so the app UI will no longer display
-    the option to use the semantic ranker. Note that will generally result in [decreased search relevance](https://techcommunity.microsoft.com/blog/azure-ai-services-blog/azure-ai-search-outperforming-vector-search-with-hybrid-retrieval-and-ranking-ca/3929167).
+    reuse your [existing search service](deploy_existing.md#azure-ai-search-resource).
+    2. The free tier does not support semantic ranker. Note that will generally result in [decreased search relevance](https://techcommunity.microsoft.com/blog/azure-ai-services-blog/azure-ai-search-outperforming-vector-search-with-hybrid-retrieval-and-ranking-ca/3929167).
     3. The free tier does not support managed identities. As a result, cloud ingestion and multimodal/vector features that require role assignments to the search service principal will have those role assignments skipped during provisioning. If you need those permissions, use a non-free tier (for example, `Basic`/`B1` or `Standard`).
 
 1. Use the free tier of Azure Document Intelligence (used in analyzing files):
@@ -85,17 +63,7 @@ However, if your goal is to minimize costs while prototyping your application, f
       azd env set USE_LOCAL_HTML_PARSER true
       ```
 
-1. Use the free tier of Azure Cosmos DB:
-
-    ```shell
-    azd env set AZURE_COSMOSDB_SKU free
-    ```
-
-    Limitation: You can have only one free Cosmos DB account. To keep your account free of charge, ensure that you do not exceed the free tier limits. For more information, see the [Azure Cosmos DB lifetime free tier](https://learn.microsoft.com/azure/cosmos-db/free-tier).
-
-1. ⚠️ This step is currently only possible if you're deploying to App Service ([see issue 2281](https://github.com/Azure-Samples/azure-search-openai-demo/issues/2281)):
-
-    Turn off Azure Monitor (Application Insights):
+1. Turn off Azure Monitor (Application Insights):
 
     ```shell
     azd env set AZURE_USE_APPLICATION_INSIGHTS false
@@ -121,13 +89,12 @@ However, if your goal is to minimize costs while prototyping your application, f
     azd env set USE_VECTORS false
     ```
 
-    By default, the application computes vector embeddings for documents during the data ingestion phase,
-    and then computes a vector embedding for user questions asked in the application.
+    By default, ingestion computes vector embeddings for documents during the data ingestion phase.
     Those computations require an embedding model, which incurs costs per tokens used. The costs are fairly low,
     so the benefits of vector search would typically outweigh the costs, but it is possible to disable vector support.
-    If you do so, the application will fall back to a keyword search, which is less accurate.
+    If you do so, the index will fall back to a keyword search, which is less accurate.
 
-1. Once you've made the desired customizations, follow the steps in the README [to run `azd up`](../README.md#deploying-from-scratch). We recommend using "eastus" as the region, for availability reasons.
+1. Once you've made the desired customizations, follow the steps in the README [to run `azd up`](../README.md#deploying). We recommend using "eastus" as the region, for availability reasons.
 
 ## Reducing costs locally
 

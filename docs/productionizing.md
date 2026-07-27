@@ -6,17 +6,15 @@ to production. Here are some things to consider:
 
 * [Azure resource configuration](#azure-resource-configuration)
 * [Additional security measures](#additional-security-measures)
-* [Load testing](#load-testing)
 * [Evaluation](#evaluation)
 
 ## Azure resource configuration
 
 ### OpenAI Capacity
 
-The default TPM (tokens per minute) is set to 30K. That is equivalent
-to approximately 30 conversations per minute (assuming 1K per user message/response).
+The default TPM (tokens per minute) is set to 30K for both the chat-completions deployment (used for ingestion-time figure descriptions) and the embedding deployment (used for both ingestion-time and, if you built one, query-time embeddings).
 You can increase the capacity by changing the `chatGptDeploymentCapacity` and `embeddingDeploymentCapacity`
-parameters in `infra/main.bicep` to your account's maximum capacity.
+parameters in `infra/main.bicep` to your account's maximum capacity — this matters most for large ingestion runs or [cloud ingestion](data_ingestion.md#cloud-ingestion), where many documents may be processed concurrently.
 You can also view the Quotas tab in [Azure OpenAI studio](https://oai.azure.com/)
 to understand how much capacity you have.
 
