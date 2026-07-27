@@ -861,7 +861,7 @@ async def test_chat_vision_user(monkeypatch, vision_auth_client, mock_user_direc
     response = await vision_auth_client.post(
         "/chat",
         headers={"Authorization": "Bearer MockToken"},
-        json={"messages": [{"content": "Flowers in westbrae nursery logo?", "role": "user"}]},
+        json={"messages": [{"content": "Flowers in greenleaf nursery logo?", "role": "user"}]},
     )
 
     assert response.status_code == 200

@@ -237,8 +237,8 @@ def mock_openai_chatcompletion(monkeypatch):
             answer = "capital of France"
         elif last_question.endswith("Generate search query for: Are interest rates high?"):
             answer = "interest rates"
-        elif last_question.endswith("Generate search query for: Flowers in westbrae nursery logo?"):
-            answer = "westbrae nursery logo"
+        elif last_question.endswith("Generate search query for: Flowers in greenleaf nursery logo?"):
+            answer = "greenleaf nursery logo"
         elif isinstance(last_message_content, list) and any([part.get("image_url") for part in last_message_content]):
             answer = "From the provided sources, the impact of interest rates and GDP growth on financial markets can be observed through the line graph. [Financial Market Analysis Report 2023-7.png]"
         else:
