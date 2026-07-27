@@ -164,3 +164,9 @@ infra/main.test.json
 
 # Claude Code agent worktree scratch state
 .claude/
+
+# Regenerable RAGAS knowledge-graph cache from evals/generate_ground_truth.py (large, derived from sample docs)
+evals/ground_truth_kg.json
+
+# Historical eval run outputs (regenerated per run, tied to the removed /chat evaluation flow)
+evals/results/

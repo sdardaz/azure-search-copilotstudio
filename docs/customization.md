@@ -19,8 +19,8 @@ This pipeline is designed to work with any supported document format. The sample
 
 The ingestion code is stored in the `app/backend/prepdocslib` folder (shared by both local ingestion via `prepdocs.py` and cloud ingestion via the Azure Functions in `app/functions`). Two files are the most common customization points:
 
-- [searchmanager.py](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/app/backend/prepdocslib/searchmanager.py): Defines the Azure AI Search index schema, and builds up the `content` field (and other fields) for each indexed chunk.
-- [textsplitter.py](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/app/backend/prepdocslib/textsplitter.py): Splits extracted text into chunks. See the [text splitter documentation](textsplitter.md) for a deep dive into the chunking algorithm.
+- [searchmanager.py](https://github.com/sdardaz/azure-search-copilotstudio/blob/main/app/backend/prepdocslib/searchmanager.py): Defines the Azure AI Search index schema, and builds up the `content` field (and other fields) for each indexed chunk.
+- [textsplitter.py](https://github.com/sdardaz/azure-search-copilotstudio/blob/main/app/backend/prepdocslib/textsplitter.py): Splits extracted text into chunks. See the [text splitter documentation](textsplitter.md) for a deep dive into the chunking algorithm.
 
 ## Improving retrieval quality
 
@@ -62,9 +62,9 @@ The search explorer works well for testing text, but is harder to use with vecto
 
 Here are additional ways for improving the search results:
 
-- Adding additional metadata to the "content" field, like the document title, so that it can be matched in the search results. Modify [searchmanager.py](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/app/backend/prepdocslib/searchmanager.py) to include more text in the `content` field.
-- Making additional fields searchable by the full text search step. For example, the "sourcepage" field is not currently searchable, but you could make that into a `SearchableField` with `searchable=True` in [searchmanager.py](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/app/backend/prepdocslib/searchmanager.py). A change like that requires [re-building the index](https://learn.microsoft.com/azure/search/search-howto-reindex#change-an-index-schema).
-- Using a different splitting strategy for the documents, or modifying the existing ones, to improve the chunks that are indexed. You can find the currently available splitters in [textsplitter.py](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/app/backend/prepdocslib/textsplitter.py).
+- Adding additional metadata to the "content" field, like the document title, so that it can be matched in the search results. Modify [searchmanager.py](https://github.com/sdardaz/azure-search-copilotstudio/blob/main/app/backend/prepdocslib/searchmanager.py) to include more text in the `content` field.
+- Making additional fields searchable by the full text search step. For example, the "sourcepage" field is not currently searchable, but you could make that into a `SearchableField` with `searchable=True` in [searchmanager.py](https://github.com/sdardaz/azure-search-copilotstudio/blob/main/app/backend/prepdocslib/searchmanager.py). A change like that requires [re-building the index](https://learn.microsoft.com/azure/search/search-howto-reindex#change-an-index-schema).
+- Using a different splitting strategy for the documents, or modifying the existing ones, to improve the chunks that are indexed. You can find the currently available splitters in [textsplitter.py](https://github.com/sdardaz/azure-search-copilotstudio/blob/main/app/backend/prepdocslib/textsplitter.py).
 
 ### Evaluating retrieval quality
 

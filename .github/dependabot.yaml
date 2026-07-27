@@ -11,17 +11,6 @@ updates:
         patterns:
           - "*"
 
-  # Maintain dependencies for npm
-  - package-ecosystem: "npm"
-    directory: "/app/frontend"
-    schedule:
-      interval: "weekly"
-    # Ignore Vite 7.x for now: Vite >=7 requires Node >=20.19.0 while project engines.node is currently >=20.0.0
-    ignore:
-      - dependency-name: "vite"
-        versions:
-          - ">=7.0.0"
-
   # Maintain dependencies for pip
   - package-ecosystem: "pip"
     directory: "/"
@@ -29,18 +18,3 @@ updates:
       interval: "weekly"
     ignore:
       - dependency-name: "pydantic-core"
-    groups:
-      telemetry:
-        patterns:
-          - "opentelemetry-*"
-          - "azure-monitor-opentelemetry*"
-      pallets:
-        patterns:
-          - "flask"
-          - "werkzeug"
-          - "blinker"
-          - "quart"
-          - "jinja2"
-          - "click"
-          - "itsdangerous"
-          - "markupsafe"

@@ -100,15 +100,15 @@
       "System.AssignedTo": {
         "_links": {
           "avatar": {
-            "href": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.ZDlhOGEyZjktMGZmZS03YjY4LTlkYjctNjk1ZWZiNGY2Nzg0"
+            "href": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
           }
         },
-        "descriptor": "aad.ZDlhOGEyZjktMGZmZS03YjY4LTlkYjctNjk1ZWZiNGY2Nzg0",
-        "displayName": "Chris Ayers",
-        "id": "cd8258ec-ad87-4c0d-9026-e5e343447185",
-        "imageUrl": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.ZDlhOGEyZjktMGZmZS03YjY4LTlkYjctNjk1ZWZiNGY2Nzg0",
-        "uniqueName": "chrisayers@microsoft.com",
-        "url": "https://spsprodeus27.vssps.visualstudio.com/A6b854e9d-a8be-405d-a4cc-5eb8e7027155/_apis/Identities/cd8258ec-ad87-4c0d-9026-e5e343447185"
+        "descriptor": "aad.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "displayName": "Sample User",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "imageUrl": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "uniqueName": "sample.user@example.com",
+        "url": "https://spsprodeus27.vssps.visualstudio.com/A00000000-0000-0000-0000-000000000000/_apis/Identities/00000000-0000-0000-0000-000000000001"
       },
       "System.Id": 2356,
       "System.State": "Done",
@@ -125,15 +125,15 @@
       "System.AssignedTo": {
         "_links": {
           "avatar": {
-            "href": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.ZDlhOGEyZjktMGZmZS03YjY4LTlkYjctNjk1ZWZiNGY2Nzg0"
+            "href": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
           }
         },
-        "descriptor": "aad.ZDlhOGEyZjktMGZmZS03YjY4LTlkYjctNjk1ZWZiNGY2Nzg0",
-        "displayName": "Chris Ayers",
-        "id": "cd8258ec-ad87-4c0d-9026-e5e343447185",
-        "imageUrl": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.ZDlhOGEyZjktMGZmZS03YjY4LTlkYjctNjk1ZWZiNGY2Nzg0",
-        "uniqueName": "chrisayers@microsoft.com",
-        "url": "https://spsprodeus27.vssps.visualstudio.com/A6b854e9d-a8be-405d-a4cc-5eb8e7027155/_apis/Identities/cd8258ec-ad87-4c0d-9026-e5e343447185"
+        "descriptor": "aad.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "displayName": "Sample User",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "imageUrl": "https://dev.azure.com/codebytes/_apis/GraphProfile/MemberAvatars/aad.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "uniqueName": "sample.user@example.com",
+        "url": "https://spsprodeus27.vssps.visualstudio.com/A00000000-0000-0000-0000-000000000000/_apis/Identities/00000000-0000-0000-0000-000000000001"
       },
       "System.Id": 2357,
       "System.State": "Done",

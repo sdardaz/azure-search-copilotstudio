@@ -1,6 +1,7 @@
 MIT License
 
-Copyright (c) 2023 Azure Samples
+Copyright (c) 2026 Soufyane Dardaz
+Portions Copyright (c) 2023 Azure Samples (original azure-search-openai-demo project, on which this project's ingestion pipeline is based)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

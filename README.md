@@ -1,33 +1,17 @@
-<!--
----
-name: Azure AI Search ingestion pipeline for Microsoft Copilot Studio (Python)
-description: Ingest documents into Azure AI Search so Microsoft Copilot Studio can use them as a knowledge source, using Azure OpenAI, Document Intelligence, and optional cloud ingestion via Azure Functions.
-languages:
-- python
-- bicep
-- azdeveloper
-products:
-- azure-openai
-- azure-cognitive-search
-- azure
-page_type: sample
-urlFragment: azure-search-openai-demo
----
--->
-
 # Azure AI Search ingestion pipeline for Microsoft Copilot Studio (Python)
+
+**Author / maintainer:** Soufyane Dardaz
 
 This solution provisions and populates an Azure AI Search index that [Microsoft Copilot Studio's built-in "Azure AI Search" knowledge source connector](docs/copilot_studio_integration.md) can query directly. It does **not** include a chat UI or chat backend — Copilot Studio is the conversational front end. This repository is responsible only for getting your documents into a well-structured, searchable index: extracting text and figures from PDFs, Office documents, images, HTML, JSON, CSV, and plain text, chunking that content, generating embeddings, and optionally enforcing document-level access control.
 
-This project is a fork of the [azure-search-openai-demo](https://github.com/Azure-Samples/azure-search-openai-demo) RAG chat sample, repurposed to drop the chat application entirely and focus on the data ingestion pipeline that a RAG app (or, in this case, Copilot Studio) depends on.
+The data ingestion pipeline started as a fork of the open-source `azure-search-openai-demo` RAG chat sample; the chat application has since been removed entirely and the project has been repurposed and extended (SharePoint sync, Copilot Studio integration) as its own, independently maintained project. See [LICENSE](LICENSE) for the license and attribution.
 
-[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=brightgreen&logo=github)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=599293758&machine=standardLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json&location=WestUs2)
-[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/azure-samples/azure-search-openai-demo)
-[![Open in VS Code for the Web](https://img.shields.io/static/v1?style=for-the-badge&label=VS+Code+for+the+Web&message=Open&color=purple&logo=visualstudiocode)](https://vscode.dev/azure?azdTemplateUrl=https://github.com/azure-samples/azure-search-openai-demo)
+[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=brightgreen&logo=github)](https://codespaces.new/sdardaz/azure-search-copilotstudio)
+[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/sdardaz/azure-search-copilotstudio)
 
 ## Important Security Notice
 
-This template, the application code and configuration it contains, has been built to showcase Microsoft Azure specific services and tools. We strongly advise our customers not to make this code part of their production environments without implementing or enabling additional security features. See our [productionizing guide](docs/productionizing.md) for tips, and consult the [Azure OpenAI Landing Zone reference architecture](https://techcommunity.microsoft.com/blog/azurearchitectureblog/azure-openai-landing-zone-reference-architecture/3882102) for more best practices.
+This project is built on Microsoft Azure services and tools. As with any sample or starting-point code, don't put it into production without implementing or enabling additional security features. See the [productionizing guide](docs/productionizing.md) for tips, and consult the [Azure OpenAI Landing Zone reference architecture](https://techcommunity.microsoft.com/blog/azurearchitectureblog/azure-openai-landing-zone-reference-architecture/3882102) for more best practices.
 
 ## Table of Contents
 
@@ -111,7 +95,7 @@ but you can also [set it up locally](#local-environment) if desired.
 
 You can run this repo virtually by using GitHub Codespaces, which will open a web-based VS Code in your browser:
 
-[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=brightgreen&logo=github)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=599293758&machine=standardLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json&location=WestUs2)
+[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=brightgreen&logo=github)](https://codespaces.new/sdardaz/azure-search-copilotstudio)
 
 Once the codespace opens (this may take several minutes), open a terminal window.
 
@@ -121,7 +105,7 @@ A related option is VS Code Dev Containers, which will open the project in your 
 
 1. Start Docker Desktop (install it if not already installed)
 2. Open the project:
-    [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/azure-samples/azure-search-openai-demo)
+    [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/sdardaz/azure-search-copilotstudio)
 
 3. In the VS Code window that opens, once the project files show up (this may take several minutes), open a terminal window.
 
@@ -137,14 +121,12 @@ A related option is VS Code Dev Containers, which will open the project in your 
     - [Powershell 7+ (pwsh)](https://github.com/powershell/powershell) - For Windows users only.
       - **Important**: Ensure you can run `pwsh.exe` from a PowerShell terminal. If this fails, you likely need to upgrade PowerShell.
 
-2. Create a new folder and switch to it in the terminal.
-3. Run this command to download the project code:
+2. Clone this repository and switch to it in the terminal:
 
     ```shell
-    azd init -t azure-search-openai-demo
+    git clone https://github.com/sdardaz/azure-search-copilotstudio.git
+    cd azure-search-copilotstudio
     ```
-
-    Note that this command will initialize a git repository, so you do not need to clone this repository.
 
 ## Deploying
 
@@ -269,19 +251,11 @@ You can find extensive documentation in the [docs](docs/README.md) folder:
 
 ### Getting help
 
-This is a sample built to demonstrate the capabilities of modern Generative AI apps and how they can be built in Azure.
-For help with deploying this sample, please post in [GitHub Issues](/issues). If you're a Microsoft employee, you can also post in [our Teams channel](https://aka.ms/azai-python-help).
+For help with deploying or using this project, please open a [GitHub issue](/issues) or contact the maintainer, Soufyane Dardaz. This repository is maintained independently and isn't supported by Microsoft.
 
-This repository is supported by the maintainers, _not_ by Microsoft Support,
-so please use the support mechanisms described above, and we will do our best to help you out.
-
-For general questions about developing AI solutions on Azure,
-join the Azure AI Foundry Developer Community:
-
-[![Azure AI Foundry Discord](https://img.shields.io/badge/Discord-Azure_AI_Foundry_Community_Discord-blue?style=for-the-badge&logo=discord&color=5865f2&logoColor=fff)](https://aka.ms/foundry/discord)
-[![Azure AI Foundry Developer Forum](https://img.shields.io/badge/GitHub-Azure_AI_Foundry_Developer_Forum-blue?style=for-the-badge&logo=github&color=000000&logoColor=fff)](https://aka.ms/foundry/forum)
+For general questions about developing AI solutions on Azure, the [Azure AI Foundry Developer Community](https://aka.ms/foundry/discord) is a useful (Microsoft-run) resource.
 
 ### Note
 
->Note: The PDF documents used in this demo contain information generated using a language model (Azure OpenAI Service). The information contained in these documents is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.
+>Note: The sample PDF documents in the `data` folder contain information generated using a language model (Azure OpenAI Service). That information is for demonstration purposes only, doesn't reflect the opinions or beliefs of any real organization, and shouldn't be relied on as factual.
 </content>

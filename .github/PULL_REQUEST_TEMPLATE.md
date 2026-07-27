@@ -13,17 +13,6 @@ If you're not sure, try it out on an old environment.
 [ ] No
 ```
 
-## Does this require changes to learn.microsoft.com docs?
-
-This repository is referenced by [this tutorial](https://learn.microsoft.com/azure/developer/python/get-started-app-chat-template)
-which includes deployment, settings and usage instructions. If text or screenshot need to change in the tutorial,
-check the box below and notify the tutorial author. A Microsoft employee can do this for you if you're an external contributor.
-
-```
-[ ] Yes
-[ ] No
-```
-
 ## Type of change
 
 ```
@@ -37,7 +26,7 @@ check the box below and notify the tutorial author. A Microsoft employee can do 
 
 ## Code quality checklist
 
-See [CONTRIBUTING.md](https://github.com/Azure-Samples/azure-search-openai-demo/blob/main/CONTRIBUTING.md#submit-pr) for more details.
+See [CONTRIBUTING.md](../CONTRIBUTING.md#submitting-a-pull-request-pr) for more details.
 
 - [ ] The current tests all pass (`python -m pytest`).
 - [ ] I added tests that prove my fix is effective or that my feature works
