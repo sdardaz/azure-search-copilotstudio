@@ -6,7 +6,7 @@ For getting started with the application, see the main [README](../README.md).
 
 ## Architecture Diagram
 
-The following diagram illustrates the ingestion pipeline components and how they connect to Azure services, plus how a querying client consumes the resulting index:
+The following diagram illustrates the ingestion pipeline components and how they connect to Azure services, plus how a querying client consumes the resulting index. An editable PowerPoint version, laid out in the same numbered-dataflow style used by the Microsoft Azure Architecture Center, is available at [docs/diagrams/architecture.pptx](diagrams/architecture.pptx) — each service card has a placeholder icon (dashed square) ready to be swapped for the official service/tool logo.
 
 ```mermaid
 graph TB
