@@ -222,7 +222,7 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
               foreach: '@body(\'Get_delta_page\')?[\'value\']'
               runtimeConfiguration: {
                 concurrency: {
-                  repetition: 5
+                  repetitions: 5
                 }
               }
               actions: {
