@@ -42,9 +42,9 @@ Copilot Studio uses `metadata_storage_path` as the citation link when present, o
 
 ## Keeping the index in sync with SharePoint
 
-If your source documents live in a SharePoint Online document library, this repo can deploy a Logic App that mirrors them into the Blob Storage container the [cloud ingestion pipeline](./data_ingestion.md#cloud-ingestion) already reads from - so parsing, chunking, figure description, and embeddings all continue to run through the *existing* Document Intelligence/Functions skillset. The Logic App's only job is getting bytes from SharePoint into that container; it does no parsing of its own.
+If your source documents live in a SharePoint Online document library, this repo deploys a Logic App that mirrors them into the Blob Storage container the [cloud ingestion pipeline](./data_ingestion.md#cloud-ingestion) already reads from - so parsing, chunking, figure description, and embeddings all continue to run through the *existing* Document Intelligence/Functions skillset. The Logic App's only job is getting bytes from SharePoint into that container; it does no parsing of its own.
 
-This requires [cloud ingestion](./data_ingestion.md#enabling-cloud-ingestion) (`USE_CLOUD_INGESTION=true`) to already be enabled, since that's what owns the Blob → indexer → skillset pipeline and the indexer this Logic App triggers.
+This requires [cloud ingestion](./data_ingestion.md#enabling-cloud-ingestion) (`USE_CLOUD_INGESTION=true`) to be enabled, since that's what owns the Blob → indexer → skillset pipeline and the indexer this Logic App triggers. Both flags default to `true`, so `azd up` provisions the Logic App out of the box.
 
 ### Why a Logic App instead of the SharePoint indexer
 
@@ -54,19 +54,19 @@ It's also built on plain Microsoft Graph, Storage, and Azure AI Search REST call
 
 ### Enable it
 
-Set these azd environment variables before `azd up` (or `azd env set` + `azd provision`):
+The Logic App is provisioned by every `azd up`, but it is deployed **`Disabled`** until you tell it which site to read. Set these azd environment variables before `azd up` (or `azd env set` + `azd provision`) to have it deployed `Enabled` and start polling:
 
 | Variable | Purpose |
 | --- | --- |
-| `USE_CLOUD_INGESTION` | Must be `true` - this Logic App feeds the cloud-ingestion indexer |
-| `USE_SHAREPOINT_LOGIC_APP` | `true` to provision the Logic App |
-| `SHAREPOINT_HOSTNAME` | Tenant hostname, e.g. `contoso.sharepoint.com` |
-| `SHAREPOINT_SITE_PATH` | Server-relative site path, e.g. `/sites/Marketing` |
+| `USE_CLOUD_INGESTION` | Must be `true` (the default) - this Logic App feeds the cloud-ingestion indexer |
+| `USE_SHAREPOINT_LOGIC_APP` | `true` (the default) to provision the Logic App; set `false` to skip it entirely |
+| `SHAREPOINT_HOSTNAME` | **Required to enable the workflow.** Tenant hostname, e.g. `contoso.sharepoint.com` |
+| `SHAREPOINT_SITE_PATH` | **Required to enable the workflow.** Server-relative site path, e.g. `/sites/Marketing` |
 | `SHAREPOINT_FOLDER_PATH` | Optional; restrict to a folder within the site's default document library, e.g. `/Shared Documents/Policies` |
 | `SHAREPOINT_SYNC_INTERVAL_MINUTES` | Polling interval, default `15` |
 | `SHAREPOINT_NOTIFICATION_WEBHOOK_URL` | Optional Teams incoming webhook (or any URL accepting `{"text": "..."}` POSTs), notified on failures |
 
-The Bicep module lives at `infra/app/logicapp-sharepoint-ingestion.bicep`.
+The Bicep module lives at `infra/app/logicapp-sharepoint-ingestion.bicep`. After deployment, `azd env get-values` reports `SHAREPOINT_LOGIC_APP_NAME` and `SHAREPOINT_LOGIC_APP_STATE` (`Enabled` or `Disabled`) so you can confirm which mode you got.
 
 ### One-time permission grant
 

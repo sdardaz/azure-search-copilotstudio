@@ -137,6 +137,8 @@ This project includes an optional feature to perform data ingestion in the cloud
 
 ### Enabling cloud ingestion
 
+Cloud ingestion is **on by default** (`USE_CLOUD_INGESTION=true` in `infra/main.parameters.json`), so a fresh `azd up` already provisions the Function Apps and configures the indexer/skillset. The steps below apply if you previously deployed with local ingestion and want to switch over, or if you turned the flag off and want it back.
+
 1. If you've previously deployed, delete the existing search index or create a new index. This feature cannot be used on existing index. In the newly created index schema, a new field 'parent_id' is added. This is used internally by the indexer to manage life cycle of chunks. Run this command to set a new index name:
 
     ```shell

@@ -136,8 +136,8 @@ Do not use single underscores in front of "private" methods or variables in Pyth
 
 There is no server process to start — this repository's only "runtime" is the ingestion scripts, run one-off against the resources provisioned by `azd up`.
 
-* **Local ingestion** (default, `USE_CLOUD_INGESTION` unset or `false`): run `./scripts/prepdocs.sh` (or `scripts/prepdocs.ps1` on Windows), which sets up a Python virtual environment and invokes `app/backend/prepdocs.py` with the current `azd` environment's variables. Extra CLI args pass through, e.g. `scripts/prepdocs.sh --removeall`.
-* **Cloud ingestion** (`USE_CLOUD_INGESTION=true`): run `./scripts/setup_cloud_ingestion.sh` (or `.ps1`), which invokes `app/backend/setup_cloud_ingestion.py` to (re)configure the Azure AI Search indexer/skillset and trigger an indexing run. The actual per-document processing happens in the Azure Functions under `app/functions/`, not locally.
+* **Cloud ingestion** (default, `USE_CLOUD_INGESTION=true`): run `./scripts/setup_cloud_ingestion.sh` (or `.ps1`), which invokes `app/backend/setup_cloud_ingestion.py` to (re)configure the Azure AI Search indexer/skillset and trigger an indexing run. The actual per-document processing happens in the Azure Functions under `app/functions/`, not locally.
+* **Local ingestion** (`USE_CLOUD_INGESTION=false`): run `./scripts/prepdocs.sh` (or `scripts/prepdocs.ps1` on Windows), which sets up a Python virtual environment and invokes `app/backend/prepdocs.py` with the current `azd` environment's variables. Extra CLI args pass through, e.g. `scripts/prepdocs.sh --removeall`.
 
 Both scripts require `azd up` (or at least `azd provision`) to have been run first, since they read connection info from the current `azd` environment.
 

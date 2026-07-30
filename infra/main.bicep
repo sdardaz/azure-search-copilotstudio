@@ -119,10 +119,10 @@ param foundryProjectName string = ''
 
 param useMultimodal bool = false
 param useEval bool = false
-param useCloudIngestion bool = false
+param useCloudIngestion bool = true
 
-@description('Sync a SharePoint Online document library into the cloud-ingestion Blob container on a schedule. Requires useCloudIngestion=true.')
-param useSharePointLogicApp bool = false
+@description('Sync a SharePoint Online document library into the cloud-ingestion Blob container on a schedule. Requires useCloudIngestion=true. Deploys disabled until sharePointHostname and sharePointSitePath are set.')
+param useSharePointLogicApp bool = true
 @description('SharePoint Online tenant hostname, e.g. contoso.sharepoint.com. Required when useSharePointLogicApp is true.')
 param sharePointHostname string = ''
 @description('Server-relative SharePoint site path, e.g. /sites/Marketing. Required when useSharePointLogicApp is true.')
@@ -1038,6 +1038,13 @@ output USE_CLOUD_INGESTION_ACLS bool = useCloudIngestionAcls
 
 output AZURE_IMAGESTORAGE_CONTAINER string = useMultimodal ? imageStorageContainerName : ''
 
+// Echoed back into the azd environment so that `azure.yaml`'s per-service `condition:` and the
+// pre/postprovision hooks agree with what was actually provisioned. Without this, a fresh
+// environment that never ran `azd env set USE_CLOUD_INGESTION true` would provision the Function
+// Apps (the Bicep default is true) but skip deploying their code and skip the indexer setup.
+output USE_CLOUD_INGESTION bool = useCloudIngestion
+output USE_SHAREPOINT_LOGIC_APP bool = useSharePointLogicApp
+
 // Cloud ingestion function skill endpoints & resource IDs
 output DOCUMENT_EXTRACTOR_SKILL_ENDPOINT string = useCloudIngestion ? 'https://${functions!.outputs.documentExtractorUrl}/api/extract' : ''
 output FIGURE_PROCESSOR_SKILL_ENDPOINT string = useCloudIngestion ? 'https://${functions!.outputs.figureProcessorUrl}/api/process' : ''
@@ -1050,5 +1057,6 @@ output TEXT_PROCESSOR_SKILL_AUTH_RESOURCE_ID string = useCloudIngestion ? functi
 output AZURE_USE_AUTHENTICATION bool = useAuthentication
 
 output SHAREPOINT_LOGIC_APP_NAME string = (useSharePointLogicApp && useCloudIngestion) ? sharePointIngestion!.outputs.logicAppName : ''
+output SHAREPOINT_LOGIC_APP_STATE string = (useSharePointLogicApp && useCloudIngestion) ? sharePointIngestion!.outputs.state : 'NotDeployed'
 
 output AZURE_VPN_CONFIG_DOWNLOAD_LINK string = useVpnGateway ? 'https://portal.azure.com/#@${tenant().tenantId}/resource${isolation!.outputs.virtualNetworkGatewayId}/pointtositeconfiguration' : ''

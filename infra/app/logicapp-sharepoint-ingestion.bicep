@@ -78,7 +78,10 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
     type: 'SystemAssigned'
   }
   properties: {
-    state: 'Enabled'
+    // Deploy the workflow disabled until a SharePoint site is configured, so `azd up` always
+    // provisions the resource without ever running it against an invalid Graph URL. Set
+    // SHAREPOINT_HOSTNAME and SHAREPOINT_SITE_PATH and re-run azd up to enable it.
+    state: (empty(sharePointHostname) || empty(sharePointSitePath)) ? 'Disabled' : 'Enabled'
     // The webhook URL is a @secure() param - it's threaded through as a workflow parameter (set in
     // `parameters` below, referenced via @parameters('notificationWebhookUrl')) rather than baked
     // as a literal into `definition`, so it never lands in the plain-text workflow definition JSON.
@@ -589,3 +592,4 @@ module searchServiceContributorRole '../core/security/role.bicep' = {
 output logicAppName string = logicApp.name
 output logicAppId string = logicApp.id
 output principalId string = logicApp.identity.principalId
+output state string = logicApp.properties.state

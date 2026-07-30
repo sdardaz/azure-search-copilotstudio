@@ -192,7 +192,7 @@
       "value": "${RESTORE_COGNITIVE_SERVICES=false}"
     },
     "useCloudIngestion": {
-      "value": "${USE_CLOUD_INGESTION=false}"
+      "value": "${USE_CLOUD_INGESTION=true}"
     },
     "useCloudIngestionAcls": {
       "value": "${USE_CLOUD_INGESTION_ACLS=false}"
@@ -207,7 +207,7 @@
       "value": "${AZURE_ADLS_GEN2_STORAGE_RESOURCE_GROUP}"
     },
     "useSharePointLogicApp": {
-      "value": "${USE_SHAREPOINT_LOGIC_APP=false}"
+      "value": "${USE_SHAREPOINT_LOGIC_APP=true}"
     },
     "sharePointHostname": {
       "value": "${SHAREPOINT_HOSTNAME}"

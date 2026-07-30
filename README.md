@@ -38,20 +38,20 @@ This project is built on Microsoft Azure services and tools. As with any sample 
 - Splits content into search-optimized chunks and computes vector embeddings with Azure OpenAI.
 - Two ingestion modes: a local CLI (`prepdocs.py`) for ingesting files from disk, and an optional [cloud ingestion pipeline](/docs/data_ingestion.md#cloud-ingestion) that runs entirely in Azure using an Azure AI Search indexer and Azure Functions custom skills — useful for larger or continuously-updated document sets.
 - Optional [document-level access control](/docs/login_and_acl.md), so that Copilot Studio (or any other querying client) only returns documents a given user is permitted to see.
-- Optional Azure Logic App that syncs documents from a SharePoint Online site/library into the Blob Storage container that feeds ingestion — see [Copilot Studio integration guide](docs/copilot_studio_integration.md).
+- An Azure Logic App (provisioned by default) that syncs documents from a SharePoint Online site/library into the Blob Storage container that feeds ingestion — see [Copilot Studio integration guide](docs/copilot_studio_integration.md).
 - The resulting Azure AI Search index is designed to be connected directly to Microsoft Copilot Studio via its built-in "Add knowledge > Azure AI Search" connector — no custom API or chat backend is required.
 
 ### Architecture
 
 At a high level:
 
-- **Azure AI Search** hosts the index that Copilot Studio queries. It also hosts the (optional) indexer/skillset used by cloud ingestion.
-- **Azure Blob Storage** holds the source documents, either uploaded manually, ingested locally via `prepdocs.py`, or synced from SharePoint by the optional Logic App.
+- **Azure AI Search** hosts the index that Copilot Studio queries. It also hosts the indexer/skillset used by cloud ingestion.
+- **Azure Blob Storage** holds the source documents, either uploaded manually, ingested locally via `prepdocs.py`, or synced from SharePoint by the Logic App.
 - **Azure OpenAI / Microsoft Foundry** provides the embedding model (for vector search) and a vision-capable chat-completions model used only to generate figure/image descriptions during ingestion — it is not used for end-user chat.
 - **Azure AI Document Intelligence** extracts text, tables, and figures from PDFs, Office documents, and images.
 - **Azure AI Vision** and/or **Azure AI Content Understanding** (optional) provide image embeddings and/or media descriptions for the multimodal ingestion feature.
-- **Azure Functions** (optional, `USE_CLOUD_INGESTION`) implement the document-extraction, figure-processing, and text-processing custom skills used by the Azure AI Search indexer for cloud ingestion.
-- **Azure Logic App** (optional, added separately, see [Copilot Studio integration guide](docs/copilot_studio_integration.md)) syncs documents from a SharePoint Online site/library into the Blob Storage container above.
+- **Azure Functions** (`USE_CLOUD_INGESTION`, on by default) implement the document-extraction, figure-processing, and text-processing custom skills used by the Azure AI Search indexer for cloud ingestion.
+- **Azure Logic App** (`USE_SHAREPOINT_LOGIC_APP`, on by default, see [Copilot Studio integration guide](docs/copilot_studio_integration.md)) syncs documents from a SharePoint Online site/library into the Blob Storage container above. It is deployed in a `Disabled` state until you set `SHAREPOINT_HOSTNAME` and `SHAREPOINT_SITE_PATH`.
 
 See [the architecture guide](docs/architecture.md) for more details.
 
@@ -74,7 +74,8 @@ However, you can try the [Azure pricing calculator](https://azure.com/e/e3490de2
 - Azure AI Document Intelligence: SO (Standard) tier using pre-built layout. Pricing per document page, sample documents have 261 pages total. [Pricing](https://azure.microsoft.com/pricing/details/form-recognizer/)
 - Azure AI Search: Basic tier, 1 replica, free level of semantic search. Pricing per hour. [Pricing](https://azure.microsoft.com/pricing/details/search/)
 - Azure Blob Storage: Standard tier with ZRS (Zone-redundant storage). Pricing per storage and read operations. [Pricing](https://azure.microsoft.com/pricing/details/storage/blobs/)
-- Azure Functions: Only provisioned if you enable [cloud ingestion](docs/data_ingestion.md#cloud-ingestion) (`USE_CLOUD_INGESTION`). Consumption plan, pricing per execution and execution time. [Pricing](https://azure.microsoft.com/pricing/details/functions/)
+- Azure Functions: Provisioned by default for [cloud ingestion](docs/data_ingestion.md#cloud-ingestion) (`USE_CLOUD_INGESTION`, set it to `false` to skip them). Flex Consumption plan, pricing per execution and execution time. [Pricing](https://azure.microsoft.com/pricing/details/functions/)
+- Azure Logic Apps: Provisioned by default for the SharePoint sync (`USE_SHAREPOINT_LOGIC_APP`, set it to `false` to skip it). Consumption plan, pricing per action executed — a workflow left in the `Disabled` state costs nothing. [Pricing](https://azure.microsoft.com/pricing/details/logic-apps/)
 - Azure AI Vision: Only provisioned if you enabled the [multimodal approach](docs/multimodal.md). Pricing per 1K transactions. [Pricing](https://azure.microsoft.com/pricing/details/cognitive-services/computer-vision/)
 - Azure AI Content Understanding: Only provisioned if you enabled [media description](docs/deploy_features.md#enabling-media-description-with-azure-content-understanding). Pricing per 1K images. [Pricing](https://azure.microsoft.com/pricing/details/content-understanding/)
 - Azure Monitor: Pay-as-you-go tier. Costs based on data ingested. [Pricing](https://azure.microsoft.com/pricing/details/monitor/)
@@ -130,7 +131,7 @@ A related option is VS Code Dev Containers, which will open the project in your 
 
 ## Deploying
 
-The steps below will provision the Azure resources (Azure AI Search, Storage, Azure OpenAI/Foundry, Document Intelligence, and optionally Azure Functions) and then run the data ingestion pipeline against the sample documents in the `./data` folder, populating the Azure AI Search index.
+The steps below will provision the Azure resources (Azure AI Search, Storage, Azure OpenAI/Foundry, Document Intelligence, Azure Functions, and the SharePoint sync Logic App) and then run the data ingestion pipeline against the sample documents in the `./data` folder, populating the Azure AI Search index.
 
 1. Login to your Azure account:
 
@@ -153,13 +154,15 @@ The steps below will provision the Azure resources (Azure AI Search, Storage, Az
     Enter a name that will be used for the resource group.
     This will create a new folder in the `.azure` folder, and set it as the active environment for any calls to `azd` going forward.
 1. (Optional) This is the point where you can customize the deployment by setting environment variables, in order to [use existing resources](docs/deploy_existing.md), [enable optional features (such as multimodal or cloud ingestion)](docs/deploy_features.md), or [deploy low-cost options](docs/deploy_lowcost.md), or [deploy with the Azure free trial](docs/deploy_freetrial.md).
-1. (Optional) To use the [cloud ingestion pipeline](docs/data_ingestion.md#cloud-ingestion) (Azure AI Search indexer + Azure Functions custom skills) instead of the local `prepdocs` script, run:
+1. (Optional) To have the SharePoint sync Logic App start running as soon as it is deployed, point it at your site:
 
     ```shell
-    azd env set USE_CLOUD_INGESTION true
+    azd env set SHAREPOINT_HOSTNAME contoso.sharepoint.com
+    azd env set SHAREPOINT_SITE_PATH /sites/Knowledge
     ```
 
-1. Run `azd up` - This will provision the Azure resources and, for local ingestion (the default), run `prepdocs` to build the search index from the files found in the `./data` folder. For cloud ingestion, it provisions the Azure Functions and configures the indexer/skillset, then triggers an initial indexing run.
+    Without these, the Logic App is still provisioned but stays `Disabled`. See the [Copilot Studio integration guide](docs/copilot_studio_integration.md) for the Microsoft Graph consent step it needs.
+1. Run `azd up` - This provisions every resource in the architecture: Azure AI Search, Blob Storage, Microsoft Foundry, Document Intelligence, the three Azure Functions custom skills, and the SharePoint sync Logic App. It then deploys the Function Apps, configures the Azure AI Search indexer/skillset, and triggers an initial indexing run.
     - **Important**: Beware that the resources created by this command will incur immediate costs, primarily from the AI Search resource. These resources may accrue costs even if you interrupt the command before it is fully executed. You can run `azd down` or delete the resources manually to avoid unnecessary spending.
     - You will be prompted to select two locations, one for the majority of resources and one for the OpenAI resource, which is currently a short list. That location list is based on the [OpenAI model availability table](https://learn.microsoft.com/azure/cognitive-services/openai/concepts/models#model-summary-table-and-region-availability) and may become outdated as availability changes.
 1. After `azd up` completes, your Azure AI Search index is populated and ready to be connected to Copilot Studio.
