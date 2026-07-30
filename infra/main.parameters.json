@@ -5,6 +5,9 @@
     "environmentName": {
       "value": "${AZURE_ENV_NAME}"
     },
+    "resourceNamePrefix": {
+      "value": "${AZURE_RESOURCE_NAME_PREFIX=sd}"
+    },
     "resourceGroupName": {
       "value": "${AZURE_RESOURCE_GROUP}"
     },
@@ -57,7 +60,7 @@
       "value": "${AZURE_DOCUMENTINTELLIGENCE_LOCATION}"
     },
     "searchIndexName": {
-      "value": "${AZURE_SEARCH_INDEX=gptkbindex}"
+      "value": "${AZURE_SEARCH_INDEX=sd-documents-index}"
     },
     "searchServiceName": {
       "value": "${AZURE_SEARCH_SERVICE}"

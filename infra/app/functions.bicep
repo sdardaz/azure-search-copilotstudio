@@ -1,6 +1,9 @@
 // Parameters for both function apps
 param location string = resourceGroup().location
 param tags object = {}
+
+@description('Short owner/organisation prefix inserted into every resource name, e.g. "sd".')
+param resourceNamePrefix string = 'sd'
 param applicationInsightsName string
 param storageResourceGroupName string
 param searchServiceResourceGroupName string
@@ -27,13 +30,13 @@ param searchUserAssignedIdentityClientId string
 var abbrs = loadJsonContent('../abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, resourceGroup().id, location))
 
-var documentExtractorRuntimeStorageName = '${abbrs.storageStorageAccounts}doc${take(resourceToken, 18)}'
-var figureProcessorRuntimeStorageName = '${abbrs.storageStorageAccounts}fig${take(resourceToken, 18)}'
-var textProcessorRuntimeStorageName = '${abbrs.storageStorageAccounts}txt${take(resourceToken, 18)}'
+var documentExtractorRuntimeStorageName = '${abbrs.storageStorageAccounts}${resourceNamePrefix}docextractor${take(resourceToken, 7)}'
+var figureProcessorRuntimeStorageName = '${abbrs.storageStorageAccounts}${resourceNamePrefix}figprocessor${take(resourceToken, 7)}'
+var textProcessorRuntimeStorageName = '${abbrs.storageStorageAccounts}${resourceNamePrefix}txtprocessor${take(resourceToken, 7)}'
 
-var documentExtractorHostId = 'doc-skill-${take(resourceToken, 12)}'
-var figureProcessorHostId = 'fig-skill-${take(resourceToken, 12)}'
-var textProcessorHostId = 'txt-skill-${take(resourceToken, 12)}'
+var documentExtractorHostId = '${resourceNamePrefix}-document-extractor-${take(resourceToken, 8)}'
+var figureProcessorHostId = '${resourceNamePrefix}-figure-processor-${take(resourceToken, 8)}'
+var textProcessorHostId = '${resourceNamePrefix}-text-processor-${take(resourceToken, 8)}'
 
 var runtimeStorageRoles = [
   {
@@ -154,7 +157,7 @@ resource textProcessorRuntimeStorageRoles 'Microsoft.Authorization/roleAssignmen
 module documentExtractorPlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
   name: 'doc-extractor-plan'
   params: {
-    name: '${abbrs.webServerFarms}doc-extractor-${resourceToken}'
+    name: '${abbrs.webServerFarms}${resourceNamePrefix}-document-extractor-${take(resourceToken, 8)}'
     sku: {
       name: 'FC1'
       tier: 'FlexConsumption'
@@ -168,7 +171,7 @@ module documentExtractorPlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
 module figureProcessorPlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
   name: 'figure-processor-plan'
   params: {
-    name: '${abbrs.webServerFarms}figure-processor-${resourceToken}'
+    name: '${abbrs.webServerFarms}${resourceNamePrefix}-figure-processor-${take(resourceToken, 8)}'
     sku: {
       name: 'FC1'
       tier: 'FlexConsumption'
@@ -182,7 +185,7 @@ module figureProcessorPlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
 module textProcessorPlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
   name: 'text-processor-plan'
   params: {
-    name: '${abbrs.webServerFarms}text-processor-${resourceToken}'
+    name: '${abbrs.webServerFarms}${resourceNamePrefix}-text-processor-${take(resourceToken, 8)}'
     sku: {
       name: 'FC1'
       tier: 'FlexConsumption'
@@ -199,7 +202,7 @@ module functionsUserIdentity 'br/public:avm/res/managed-identity/user-assigned-i
   params: {
     location: location
     tags: tags
-    name: 'functions-user-identity-${resourceToken}'
+    name: 'id-${resourceNamePrefix}-ingestion-skills-${resourceToken}'
   }
 }
 

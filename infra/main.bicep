@@ -69,6 +69,11 @@ param environmentName string
 })
 param location string
 
+@description('Short owner/organisation prefix inserted into every resource name, e.g. "sd".')
+@minLength(2)
+@maxLength(6)
+param resourceNamePrefix string = 'sd'
+
 param resourceGroupName string = '' // Set in main.parameters.json
 
 param applicationInsightsDashboardName string = '' // Set in main.parameters.json
@@ -93,10 +98,10 @@ param searchServiceQueryRewriting string // Set in main.parameters.json
 param storageAccountName string = '' // Set in main.parameters.json
 param storageResourceGroupName string = '' // Set in main.parameters.json
 param storageResourceGroupLocation string = location
-param storageContainerName string = 'content'
+param storageContainerName string = '${resourceNamePrefix}-source-documents'
 param storageSkuName string // Set in main.parameters.json
 
-param imageStorageContainerName string = 'images'
+param imageStorageContainerName string = '${resourceNamePrefix}-extracted-figures'
 
 @allowed(['azure', 'openai', 'azure_custom'])
 param openAiHost string // Set in main.parameters.json
@@ -302,7 +307,7 @@ param runningOnAdo string = ''
 
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
-  name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
+  name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${resourceNamePrefix}-${environmentName}'
   location: location
   tags: tags
 }
@@ -338,10 +343,10 @@ module monitoring 'core/monitor/monitoring.bicep' = if (useApplicationInsights) 
     tags: tags
     applicationInsightsName: !empty(applicationInsightsName)
       ? applicationInsightsName
-      : '${abbrs.insightsComponents}${resourceToken}'
+      : '${abbrs.insightsComponents}${resourceNamePrefix}-ingestion-monitoring-${resourceToken}'
     logAnalyticsName: !empty(logAnalyticsName)
       ? logAnalyticsName
-      : '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
+      : '${abbrs.operationalInsightsWorkspaces}${resourceNamePrefix}-ingestion-monitoring-${resourceToken}'
     publicNetworkAccess: publicNetworkAccess
   }
 }
@@ -352,7 +357,7 @@ module applicationInsightsDashboard 'backend-dashboard.bicep' = if (useApplicati
   params: {
     name: !empty(applicationInsightsDashboardName)
       ? applicationInsightsDashboardName
-      : '${abbrs.portalDashboards}${resourceToken}'
+      : '${abbrs.portalDashboards}${resourceNamePrefix}-ingestion-monitoring-${resourceToken}'
     location: location
     applicationInsightsName: useApplicationInsights ? monitoring!.outputs.applicationInsightsName : ''
   }
@@ -422,6 +427,7 @@ module functions 'app/functions.bicep' = if (useCloudIngestion) {
   params: {
     location: location
     tags: tags
+    resourceNamePrefix: resourceNamePrefix
     applicationInsightsName: useApplicationInsights ? monitoring!.outputs.applicationInsightsName : ''
     storageResourceGroupName: storageResourceGroupNameActual
     searchServiceResourceGroupName: searchServiceResourceGroupNameActual
@@ -431,9 +437,9 @@ module functions 'app/functions.bicep' = if (useCloudIngestion) {
     visionResourceGroupName: useMultimodal ? visionResourceGroupNameActual : resourceGroup.name
     contentUnderstandingServiceName: useMediaDescriberAzureCU ? contentUnderstanding!.outputs.name : ''
     contentUnderstandingResourceGroupName: useMediaDescriberAzureCU ? contentUnderstandingResourceGroupNameActual : resourceGroup.name
-    documentExtractorName: '${abbrs.webSitesFunctions}doc-extractor-${resourceToken}'
-    figureProcessorName: '${abbrs.webSitesFunctions}figure-processor-${resourceToken}'
-    textProcessorName: '${abbrs.webSitesFunctions}text-processor-${resourceToken}'
+    documentExtractorName: '${abbrs.webSitesFunctions}${resourceNamePrefix}-document-extractor-${resourceToken}'
+    figureProcessorName: '${abbrs.webSitesFunctions}${resourceNamePrefix}-figure-processor-${resourceToken}'
+    textProcessorName: '${abbrs.webSitesFunctions}${resourceNamePrefix}-text-processor-${resourceToken}'
     openIdIssuer: authenticationIssuerUri
     appEnvVariables: appEnvVariables
     searchUserAssignedIdentityClientId: searchService.outputs.userAssignedIdentityClientId
@@ -446,7 +452,7 @@ module sharePointIngestion 'app/logicapp-sharepoint-ingestion.bicep' = if (useSh
   name: 'sharepoint-ingestion'
   scope: resourceGroup
   params: {
-    logicAppName: '${abbrs.logicWorkflows}sp-ingestion-${resourceToken}'
+    logicAppName: '${abbrs.logicWorkflows}${resourceNamePrefix}-sharepoint-document-sync-${resourceToken}'
     location: location
     tags: tags
     storageAccountName: cloudIngestionStorageAccount
@@ -527,12 +533,12 @@ module foundryAccount 'br/public:avm/res/cognitive-services/account:0.15.0' = if
   name: 'foundry-account'
   scope: az.resourceGroup(openAiResourceGroupNameActual)
   params: {
-    name: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+    name: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceNamePrefix}-embeddings-and-vision-${resourceToken}'
     location: openAiLocation
     tags: tags
     kind: 'AIServices'
     allowProjectManagement: true
-    customSubDomainName: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+    customSubDomainName: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceNamePrefix}-embeddings-and-vision-${resourceToken}'
     publicNetworkAccess: publicNetworkAccess
     networkAcls: {
       defaultAction: 'Allow'
@@ -579,11 +585,11 @@ module documentIntelligence 'br/public:avm/res/cognitive-services/account:0.7.2'
   params: {
     name: !empty(documentIntelligenceServiceName)
       ? documentIntelligenceServiceName
-      : '${abbrs.cognitiveServicesDocumentIntelligence}${resourceToken}'
+      : '${abbrs.cognitiveServicesDocumentIntelligence}${resourceNamePrefix}-document-layout-${resourceToken}'
     kind: 'FormRecognizer'
     customSubDomainName: !empty(documentIntelligenceServiceName)
       ? documentIntelligenceServiceName
-      : '${abbrs.cognitiveServicesDocumentIntelligence}${resourceToken}'
+      : '${abbrs.cognitiveServicesDocumentIntelligence}${resourceNamePrefix}-document-layout-${resourceToken}'
     publicNetworkAccess: publicNetworkAccess
     networkAcls: {
       defaultAction: 'Allow'
@@ -602,14 +608,14 @@ module vision 'br/public:avm/res/cognitive-services/account:0.7.2' = if (useMult
   params: {
     name: !empty(visionServiceName)
       ? visionServiceName
-      : '${abbrs.cognitiveServicesVision}${resourceToken}'
+      : '${abbrs.cognitiveServicesVision}${resourceNamePrefix}-image-embeddings-${resourceToken}'
     kind: 'CognitiveServices'
     networkAcls: {
       defaultAction: 'Allow'
     }
     customSubDomainName: !empty(visionServiceName)
       ? visionServiceName
-      : '${abbrs.cognitiveServicesVision}${resourceToken}'
+      : '${abbrs.cognitiveServicesVision}${resourceNamePrefix}-image-embeddings-${resourceToken}'
     location: visionResourceGroupLocation
     tags: tags
     sku: 'S0'
@@ -624,14 +630,14 @@ module contentUnderstanding 'br/public:avm/res/cognitive-services/account:0.7.2'
   params: {
     name: !empty(contentUnderstandingServiceName)
       ? contentUnderstandingServiceName
-      : '${abbrs.cognitiveServicesContentUnderstanding}${resourceToken}'
+      : '${abbrs.cognitiveServicesContentUnderstanding}${resourceNamePrefix}-media-description-${resourceToken}'
     kind: 'AIServices'
     networkAcls: {
       defaultAction: 'Allow'
     }
     customSubDomainName: !empty(contentUnderstandingServiceName)
       ? contentUnderstandingServiceName
-      : '${abbrs.cognitiveServicesContentUnderstanding}${resourceToken}'
+      : '${abbrs.cognitiveServicesContentUnderstanding}${resourceNamePrefix}-media-description-${resourceToken}'
     // Hard-coding to westus for now, due to limited availability and no overlap with Document Intelligence
     location: 'westus'
     tags: tags
@@ -644,7 +650,9 @@ module searchService 'core/search/search-services.bicep' = {
   name: 'search-service'
   scope: az.resourceGroup(searchServiceResourceGroupNameActual)
   params: {
-    name: !empty(searchServiceName) ? searchServiceName : 'gptkb-${resourceToken}'
+    name: !empty(searchServiceName)
+      ? searchServiceName
+      : 'srch-${resourceNamePrefix}-document-search-${resourceToken}'
     location: !empty(searchServiceLocation) ? searchServiceLocation : location
     tags: tags
     disableLocalAuth: true
@@ -672,7 +680,9 @@ module storage 'core/storage/storage-account.bicep' = {
   name: 'storage'
   scope: az.resourceGroup(storageResourceGroupNameActual)
   params: {
-    name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
+    name: !empty(storageAccountName)
+      ? storageAccountName
+      : '${abbrs.storageStorageAccounts}${resourceNamePrefix}content${take(resourceToken, 12)}'
     location: storageResourceGroupLocation
     tags: tags
     publicNetworkAccess: publicNetworkAccess
@@ -711,7 +721,7 @@ module adlsStorage 'core/storage/storage-account.bicep' = if (useCloudIngestionA
   name: 'adls-storage'
   scope: az.resourceGroup(storageResourceGroupNameActual)
   params: {
-    name: 'adls${abbrs.storageStorageAccounts}${resourceToken}'
+    name: '${abbrs.storageStorageAccounts}${resourceNamePrefix}aclcontent${take(resourceToken, 9)}'
     location: storageResourceGroupLocation
     tags: tags
     publicNetworkAccess: publicNetworkAccess
@@ -897,10 +907,10 @@ module isolation 'network-isolation.bicep' = if (usePrivateEndpoint) {
   params: {
     location: location
     tags: tags
-    vnetName: '${abbrs.virtualNetworks}${resourceToken}'
+    vnetName: '${abbrs.virtualNetworks}${resourceNamePrefix}-ingestion-${resourceToken}'
     useVpnGateway: useVpnGateway
-    vpnGatewayName: useVpnGateway ? '${abbrs.networkVpnGateways}${resourceToken}' : ''
-    dnsResolverName: useVpnGateway ? '${abbrs.privateDnsResolver}${resourceToken}' : ''
+    vpnGatewayName: useVpnGateway ? '${abbrs.networkVpnGateways}${resourceNamePrefix}-ingestion-${resourceToken}' : ''
+    dnsResolverName: useVpnGateway ? '${abbrs.privateDnsResolver}${resourceNamePrefix}-ingestion-${resourceToken}' : ''
   }
 }
 
