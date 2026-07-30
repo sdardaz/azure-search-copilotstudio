@@ -58,24 +58,16 @@ var searchEndpoint = 'https://${searchServiceName}.search.windows.net'
 // rather than with a runtime expression inside the workflow definition.
 var initialDeltaUrlSuffix = empty(sharePointFolderPath) ? '/drive/root/delta' : '/drive/root:${sharePointFolderPath}:/delta'
 
-resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
-  name: storageAccountName
+// The sync-state and error tables live in the ingestion storage account, which may sit in a
+// different resource group. Child resources can't be declared under a cross-scope `existing`
+// parent (BCP165), so they are created through a module targeting that resource group.
+module storageTables 'storage-tables.bicep' = {
+  name: 'sp-logicapp-tables-${uniqueString(logicAppName)}'
   scope: resourceGroup(storageResourceGroupName)
-}
-
-resource tableServiceRef 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' existing = {
-  parent: storageAccountRef
-  name: 'default'
-}
-
-resource syncStateTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableServiceRef
-  name: stateTableName
-}
-
-resource ingestionErrorsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableServiceRef
-  name: errorsTableName
+  params: {
+    storageAccountName: storageAccountName
+    tableNames: [stateTableName, errorsTableName]
+  }
 }
 
 resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
