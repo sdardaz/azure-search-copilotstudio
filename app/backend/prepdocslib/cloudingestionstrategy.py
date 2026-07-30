@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
+from azure.core.exceptions import HttpResponseError
 from azure.search.documents.indexes.models import (
     IndexingParameters,
     IndexingParametersConfiguration,
@@ -367,5 +368,17 @@ class CloudIngestionStrategy(Strategy):  # pragma: no cover
                     file.close()
 
         async with self.search_info.create_search_indexer_client() as indexer_client:
-            await indexer_client.run_indexer(self.indexer_name)
-        logger.info("Triggered indexer '%s' for cloud ingestion", self.indexer_name)
+            try:
+                await indexer_client.run_indexer(self.indexer_name)
+                logger.info("Triggered indexer '%s' for cloud ingestion", self.indexer_name)
+            except HttpResponseError as error:
+                # Azure AI Search starts an indexer automatically as soon as it is created, so an
+                # explicit run request issued right after setup() collides with that first
+                # invocation and returns 409. The documents are still picked up by the in-flight
+                # run, so this is not a failure - anything else is.
+                if error.status_code != 409:
+                    raise
+                logger.info(
+                    "Indexer '%s' is already running (HTTP 409); letting the in-flight run finish",
+                    self.indexer_name,
+                )
