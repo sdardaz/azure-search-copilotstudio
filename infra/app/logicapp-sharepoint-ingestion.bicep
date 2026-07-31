@@ -249,7 +249,7 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                           runAfter: {}
                           inputs: {
                             method: 'DELETE'
-                            uri: '${blobEndpoint}/${storageContainerName}/@{encodeURIComponent(item()?[\'id\'])}'
+                            uri: '${blobEndpoint}/${storageContainerName}/@{encodeURIComponent(item()?[\'id\'])}@{if(empty(item()?[\'name\']), \'\', concat(\'.\', toLower(last(split(item()?[\'name\'], \'.\')))))}'
                             authentication: {
                               type: 'ManagedServiceIdentity'
                               audience: 'https://storage.azure.com/'
@@ -317,7 +317,7 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                                 }
                                 inputs: {
                                   method: 'PUT'
-                                  uri: '${blobEndpoint}/${storageContainerName}/@{encodeURIComponent(item()?[\'id\'])}'
+                                  uri: '${blobEndpoint}/${storageContainerName}/@{encodeURIComponent(item()?[\'id\'])}@{if(empty(item()?[\'name\']), \'\', concat(\'.\', toLower(last(split(item()?[\'name\'], \'.\')))))}'
                                   headers: {
                                     'x-ms-blob-type': 'BlockBlob'
                                     'x-ms-version': '2020-10-02'
