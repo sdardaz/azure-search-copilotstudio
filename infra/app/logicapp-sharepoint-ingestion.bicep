@@ -284,12 +284,30 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                           Try_ingest_file: {
                             type: 'Scope'
                             actions: {
-                              Download_file_content: {
+                              // Microsoft Graph `delta` responses do not carry the
+                              // `@microsoft.graph.downloadUrl` instance annotation, so fetch the item's
+                              // metadata (which does include it) to get a short-lived, pre-authenticated
+                              // download URL before streaming the content.
+                              Get_item_download_url: {
                                 type: 'Http'
                                 runAfter: {}
                                 inputs: {
                                   method: 'GET'
-                                  uri: '@{item()?[\'@microsoft.graph.downloadUrl\']}'
+                                  uri: 'https://graph.microsoft.com/v1.0/drives/@{item()?[\'parentReference\']?[\'driveId\']}/items/@{item()?[\'id\']}'
+                                  authentication: {
+                                    type: 'ManagedServiceIdentity'
+                                    audience: 'https://graph.microsoft.com/'
+                                  }
+                                }
+                              }
+                              Download_file_content: {
+                                type: 'Http'
+                                runAfter: {
+                                  Get_item_download_url: ['Succeeded']
+                                }
+                                inputs: {
+                                  method: 'GET'
+                                  uri: '@{body(\'Get_item_download_url\')?[\'@microsoft.graph.downloadUrl\']}'
                                 }
                               }
                               Upload_blob: {
