@@ -170,3 +170,9 @@ evals/ground_truth_kg.json
 
 # Historical eval run outputs (regenerated per run, tied to the removed /chat evaluation flow)
 evals/results/
+
+# Official Microsoft product icons used by docs/diagrams/architecture_pptx.js.
+# Microsoft's icon terms allow use in architecture diagrams but not redistribution,
+# so the extracted PNGs stay local. Regenerate them with:
+#   python docs/diagrams/logos_from_zips.py <dir-with-the-official-zips>
+docs/diagrams/logos/

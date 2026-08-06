@@ -1,12 +1,32 @@
 // Generator for docs/diagrams/architecture.pptx — the architecture deck.
 //
+//   python docs/diagrams/logos_from_zips.py <dir-with-the-official-icon-zips>
 //   npm install pptxgenjs && node docs/diagrams/architecture_pptx.js
 //
 // Edit this file rather than the .pptx: every box, connector and label is
-// positioned here in inches on a 13.333 x 7.5 canvas. The dashed grey squares
-// are deliberate placeholders for the official product logos.
+// positioned here in inches on a 13.333 x 7.5 canvas.
+//
+// Product logos are read from ./logos/<slot>.png, which is gitignored because
+// Microsoft's icon terms permit use but not redistribution. Any slot whose file
+// is absent falls back to a dashed placeholder and is reported on stderr, so a
+// run without the icons still produces a complete (if unbranded) deck.
 
+const fs = require("fs");
+const path = require("path");
 const pptxgen = require("pptxgenjs");
+
+const LOGO_DIR = path.join(__dirname, "logos");
+const missingLogos = new Set();
+
+function logoData(slot) {
+  if (!slot) return null;
+  const file = path.join(LOGO_DIR, slot + ".png");
+  if (!fs.existsSync(file)) {
+    missingLogos.add(slot);
+    return null;
+  }
+  return "image/png;base64," + fs.readFileSync(file).toString("base64");
+}
 
 // ---------------------------------------------------------------- palette
 const AZ = "0078D4"; // Azure blue
@@ -27,7 +47,14 @@ pres.title = "Pipeline d'ingestion documentaire pour Microsoft Copilot Studio";
 // ---------------------------------------------------------------- helpers
 const shadow = () => ({ type: "outer", color: "000000", blur: 4, offset: 1, angle: 90, opacity: 0.13 });
 
-function logoBox(slide, x, y, size, label) {
+function logoBox(slide, x, y, size, label, slot) {
+  const data = logoData(slot);
+  if (data) {
+    // Icons are square with their own internal padding, so they sit directly on
+    // the card: no grey chip behind them.
+    slide.addImage({ data, x, y, w: size, h: size });
+    return;
+  }
   slide.addShape(pres.ShapeType.roundRect, {
     x, y, w: size, h: size, rectRadius: 0.03,
     fill: { color: PLACE_FILL },
@@ -49,7 +76,7 @@ function card(slide, o) {
     shadow: shadow(),
   });
   const ls = o.logo || 0.26;
-  logoBox(slide, o.x + 0.075, o.y + 0.075, ls);
+  logoBox(slide, o.x + 0.075, o.y + 0.075, ls, null, o.icon);
   slide.addText(o.title, {
     x: o.x + 0.075 + ls + 0.07, y: o.y + 0.045,
     w: o.w - (0.075 + ls + 0.07) - 0.07,
@@ -189,11 +216,13 @@ boundary(s1, {
 // -- sources
 card(s1, {
   x: 0.46, y: 1.70, w: 1.73, h: 0.88, accent: GREY, badge: 1,
+  icon: "sharepoint",
   title: "SharePoint dans Microsoft 365",
   desc: "Bibliothèque de documents,\nsource de vérité métier",
 });
 card(s1, {
   x: 0.46, y: 2.72, w: 1.73, h: 0.80, accent: GREY,
+  icon: "local-files",
   title: "Fichiers locaux · ./data",
   desc: "Ingestion ponctuelle (CLI)",
 });
@@ -202,21 +231,25 @@ card(s1, {
 const RY = 1.70, RH = 0.88, RC = RY + RH / 2; // 2.14
 card(s1, {
   x: 2.57, y: RY, w: 1.775, h: RH, badge: 2,
+  icon: "logic-apps",
   title: "Azure Logic Apps",
   desc: "Consommation · déclencheur\nrécurrent (15 min par défaut)",
 });
 card(s1, {
   x: 4.705, y: RY, w: 1.775, h: RH, badge: 3,
+  icon: "blob-storage",
   title: "Azure Blob Storage",
   desc: "Conteneurs content + images\nzone d'atterrissage · soft-delete",
 });
 card(s1, {
   x: 6.84, y: RY, w: 1.775, h: RH, badge: 4,
+  icon: "ai-search",
   title: "Azure AI Search — Indexeur",
   desc: "Planification, suivi des\nchangements, relances, lots",
 });
 card(s1, {
   x: 8.975, y: RY, w: 1.775, h: RH, badge: 9,
+  icon: "ai-search",
   title: "Azure AI Search — Index",
   desc: "1 document d'index = 1 chunk\nhybride + ranker sémantique",
 });
@@ -224,11 +257,13 @@ card(s1, {
 // -- Power Platform + user
 card(s1, {
   x: 11.13, y: RY, w: 1.74, h: RH, accent: GREEN, badge: 10,
+  icon: "copilot-studio",
   title: "Microsoft Copilot Studio",
   desc: "Connaissances → connecteur\nnatif « Azure AI Search »",
 });
 card(s1, {
   x: 11.13, y: 3.10, w: 1.74, h: 0.78, accent: GREY, badge: 11,
+  icon: "user",
   title: "Utilisateur métier",
   desc: "Microsoft Teams · web · M365",
 });
@@ -256,15 +291,19 @@ boundary(s1, {
 const SW = 1.325, SY = 3.42, SH = 0.96;
 const sx = [2.69, 4.185, 5.68, 7.175];
 card(s1, { x: sx[0], y: SY, w: SW, h: SH, badge: 5, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "functions",
   title: "Document\nExtractor",
   desc: "Télécharge le blob, extrait texte,\ntableaux et figures ; lit les ACL" });
 card(s1, { x: sx[1], y: SY, w: SW, h: SH, badge: 6, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "functions",
   title: "Figure\nProcessor",
   desc: "Recadre la figure, la décrit,\nvectorise l'image" });
 card(s1, { x: sx[2], y: SY, w: SW, h: SH, badge: 7, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "ai-search",
   title: "Shaper\n(intégré)",
   desc: "Consolide pages et figures\nen un objet unique" });
 card(s1, { x: sx[3], y: SY, w: SW, h: SH, badge: 8, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "functions",
   title: "Text\nProcessor",
   desc: "Fusionne, découpe en chunks,\ncalcule les embeddings" });
 
@@ -285,15 +324,19 @@ const svcBand = {
 boundary(s1, { ...svcBand, rectOnly: true });
 const VY = 5.10, VH = 1.00;
 card(s1, { x: sx[0], y: VY, w: SW, h: VH, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "document-intelligence",
   title: "Azure AI Document\nIntelligence",
   desc: "Modèle layout : texte, tableaux\n(→ HTML), figures + coordonnées" });
 card(s1, { x: sx[1], y: VY, w: SW, h: VH, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "ai-vision",
   title: "Azure AI Vision",
   desc: "Embeddings d'images\n(multimodal, option)" });
 card(s1, { x: sx[2], y: VY, w: SW, h: VH, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "content-understanding",
   title: "Azure AI Content\nUnderstanding",
   desc: "Description de médias\n(alternative, option)" });
 card(s1, { x: sx[3], y: VY, w: SW, h: VH, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
+  icon: "foundry",
   title: "Microsoft Foundry",
   desc: "Azure OpenAI : text-embedding-3-large (3072 dim.) et modèle vision pour les figures" });
 
@@ -336,7 +379,8 @@ function slide1Schema() {
   );
   card(s1, {
     x: 8.975, y: 4.72, w: 1.775, h: 1.04, logo: 0.24, ts: 7, ds: 5.8, th: 0.16, dg: 0.24,
-    title: "Azure Monitor",
+    icon: "monitor",
+  title: "Azure Monitor",
     desc: "Application Insights + Log Analytics\ndiagnostics indexeur, Functions,\nLogic App",
   });
   s1.addText("Reçoit la télémétrie de l'ensemble des composants Azure ci-contre.", {
@@ -365,7 +409,7 @@ s1.addText("Légende", {
 legendItem(0.35, AZ, "Service Azure managé");
 legendItem(2.05, GREEN, "Microsoft 365 / Power Platform");
 legendItem(4.35, GREY, "Acteur ou source hors Azure");
-legendItem(6.45, PLACE_LINE, "Emplacement réservé au logo — à remplacer", true);
+legendItem(6.45, PLACE_LINE, "Emplacement réservé à votre logo (en-tête)", true);
 s1.addText(
   "Trait plein bleu = flux de données principal   ·   trait violet = exécution du skillset par l'indexeur   ·   trait pointillé = appel de service ou chemin alternatif   ·   les pastilles 1 à 11 renvoient au détail de l'étape (slide suivante).",
   {
@@ -458,7 +502,7 @@ function panel(slide, o) {
     fill: { color: "FFFFFF" }, line: { color: o.color || AZ, width: 1 },
     shadow: shadow(),
   });
-  logoBox(slide, o.x + 0.22, o.y + 0.24, 0.34);
+  logoBox(slide, o.x + 0.22, o.y + 0.24, 0.34, null, o.icon);
   slide.addText(o.title, {
     x: o.x + 0.68, y: o.y + 0.22, w: o.w - 0.90, h: 0.38, fontFace: F, fontSize: 13,
     bold: true, color: NAVY, align: "left", valign: "middle", margin: 0,
@@ -478,7 +522,7 @@ function panel(slide, o) {
 
 const PW = 4.06, PX = [0.35, 4.63, 8.91];
 panel(s3, {
-  x: PX[0], y: 1.12, w: PW, h: 2.62, color: AZ, title: "Identité & sécurité",
+  x: PX[0], y: 1.12, w: PW, h: 2.62, color: AZ, icon: "entra-id", title: "Identité & sécurité",
   items: [
     "Identités managées de bout en bout : Search → Storage / Foundry / Vision ; Functions → Storage / Search / Foundry / Document Intelligence ; Logic App → Graph / Storage / Search.",
     "Aucune clé stockée : disableLocalAuth sur Azure AI Search et Document Intelligence, allowSharedKeyAccess = false sur le compte de stockage.",
@@ -486,7 +530,7 @@ panel(s3, {
   ],
 });
 panel(s3, {
-  x: PX[1], y: 1.12, w: PW, h: 2.62, color: AZ, title: "Réseau",
+  x: PX[1], y: 1.12, w: PW, h: 2.62, color: AZ, icon: "virtual-network", title: "Réseau",
   items: [
     "Private Endpoints optionnels : Blob Storage, Azure AI Search, comptes Cognitive Services / Foundry.",
     "Zones Azure Private DNS associées ; publicNetworkAccess peut être positionné à Disabled.",
@@ -494,7 +538,7 @@ panel(s3, {
   ],
 });
 panel(s3, {
-  x: PX[2], y: 1.12, w: PW, h: 2.62, color: AZ, title: "Observabilité & coûts",
+  x: PX[2], y: 1.12, w: PW, h: 2.62, color: AZ, icon: "monitor", title: "Observabilité & coûts",
   items: [
     "Application Insights + Log Analytics : Azure Functions, Logic App, diagnostics Azure AI Search.",
     "Historique d'exécution de l'indexeur et de la Logic App consultable dans le portail Azure.",
@@ -544,4 +588,12 @@ s3.addText(
 );
 s3.addNotes("Vue transverse : sécurité, réseau, observabilité, robustesse de la synchronisation et modalités de déploiement.");
 
-pres.writeFile({ fileName: "architecture.pptx" }).then((f) => console.log("written:", f));
+pres.writeFile({ fileName: "architecture.pptx" }).then((f) => {
+  console.log("written:", f);
+  if (missingLogos.size) {
+    console.error(
+      "placeholders left for missing logos (run logos_from_zips.py): " +
+        [...missingLogos].sort().join(", ")
+    );
+  }
+});
